@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football DB</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f0e; --surface:#141716; --surface2:#1c2019; --border:#2a2e29;
+    --green:#3ddc84; --green2:#2ab56a; --yellow:#f0c132; --red:#e05252;
+    --blue:#5b9cf6; --text:#e8ede9; --muted:#6b7569; --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+  .sidebar-logo{padding:28px 20px 20px;border-bottom:1px solid var(--border);}
+  .sidebar-logo h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;color:var(--green);line-height:1;}
+  .sidebar-logo span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;}
+  nav{padding:16px 10px;flex:1;}
+  nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;margin-bottom:3px;transition:all .15s;cursor:pointer;}
+  nav a:hover{color:var(--text);background:var(--surface2);}
+  nav a.active{color:var(--green);background:rgba(61,220,132,.1);}
+  nav a .icon{font-size:16px;width:20px;text-align:center;}
+  .main{margin-left:220px;padding:32px 36px;min-height:100vh;}
+  .page{display:none;} .page.active{display:block;}
+  .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+  .page-header h2{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;}
+  .page-header p{color:var(--muted);font-size:13px;margin-top:2px;}
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;}
+  .card .label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;}
+  .card .value{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;color:var(--green);}
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .table-wrap table{width:100%;border-collapse:collapse;font-size:13px;}
+  .table-wrap thead th{background:var(--surface2);padding:11px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+  .table-wrap tbody td{padding:10px 14px;border-bottom:1px solid rgba(42,46,41,.5);vertical-align:middle;}
+  .table-wrap tbody tr:last-child td{border-bottom:none;}
+  .table-wrap tbody tr:hover td{background:var(--surface2);}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-n1{background:rgba(224,82,82,.2);color:#e05252;border:1px solid rgba(224,82,82,.3);}
+  .badge-n2{background:rgba(240,193,50,.2);color:#f0c132;border:1px solid rgba(240,193,50,.3);}
+  .badge-n3{background:rgba(61,220,132,.2);color:#3ddc84;border:1px solid rgba(61,220,132,.3);}
+  .badge-n4{background:rgba(107,117,105,.2);color:#8a9688;border:1px solid rgba(107,117,105,.3);}
+  .pts-badge{display:inline-block;background:rgba(61,220,132,.12);color:var(--green);border-radius:6px;padding:2px 8px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;}
+  .pts-badge.neg{background:rgba(224,82,82,.12);color:var(--red);}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:18px;}
+  .form-group label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+  .form-group input,.form-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none;transition:border-color .15s;}
+  .form-group input:focus,.form-group select:focus{border-color:var(--green);}
+  .form-group select option{background:var(--surface);}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:7px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+  .btn-primary{background:var(--green);color:#0d0f0e;} .btn-primary:hover{background:var(--green2);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);} .btn-ghost:hover{color:var(--text);}
+  .score-cell{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-align:center;}
+  .rank-num{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--muted);}
+  .rank-num.top3{color:var(--yellow);}
+  .h2h-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+  .h2h-team{flex:1;text-align:center;}
+  .h2h-team .nome{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;}
+  .h2h-vs{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:var(--border);flex-shrink:0;}
+  .config-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;}
+  .config-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+  .config-key{flex:1;font-size:13px;font-weight:600;}
+  .config-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+  .config-item input{width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-align:center;outline:none;}
+  .config-item input:focus{border-color:var(--green);}
+  .section-title{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:12px;letter-spacing:.5px;}
+  .divider{height:1px;background:var(--border);margin:24px 0;}
+  .empty-state{text-align:center;padding:60px;color:var(--muted);}
+  .empty-state .icon{font-size:48px;margin-bottom:12px;}
+  .filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;}
+  .filter-bar .form-group{min-width:140px;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);padding:12px 18px;border-radius:var(--radius);font-size:13px;font-weight:600;z-index:1000;transform:translateY(80px);opacity:0;transition:all .25s;}
+  .toast.show{transform:translateY(0);opacity:1;} .toast.error{border-color:var(--red);color:var(--red);}
+  /* Tabela de pontuação visual */
+  .pts-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+  .pts-table th{background:var(--surface2);padding:10px 14px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border:1px solid var(--border);}
+  .pts-table td{padding:9px 14px;border:1px solid var(--border);text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:16px;}
+  .pts-table tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+  .pts-pos{color:var(--green);font-weight:700;} .pts-neg{color:var(--red);font-weight:700;} .pts-zero{color:var(--muted);}
+
+  .pts-pos{color:var(--green);font-weight:700;} .pts-neg{color:var(--red);font-weight:700;} .pts-zero{color:var(--muted);}
+  .v-row{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(42,46,41,.5);font-size:13px;}
+  .v-row:last-child{border-bottom:none;}
+  .v-label{color:var(--muted);font-size:12px;}
+  .step-tag{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--muted);margin-right:6px;}
+  .pts-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .pts-table th{background:var(--surface2);padding:10px 14px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border:1px solid var(--border);}
+  .pts-table td{padding:9px 14px;border:1px solid var(--border);text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:16px;}
+  .pts-table tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+  @media(max-width:768px){.sidebar{width:64px;}.sidebar-logo h1,.sidebar-logo span,nav a span{display:none;}nav a{justify-content:center;padding:12px;}.main{margin-left:64px;padding:20px 16px;}}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>⚽ FOOT<br>BALL DB</h1>
+    <span>v2</span>
+  </div>
+  <nav>
+    <a class="active" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></a>
+    <a onclick="showPage('ranking')" data-page="ranking"><span class="icon">🏆</span><span>Ranking</span></a>
+    <a onclick="showPage('partidas')" data-page="partidas"><span class="icon">📋</span><span>Partidas</span></a>
+    <a onclick="showPage('h2h')" data-page="h2h"><span class="icon">⚔️</span><span>Head-to-Head</span></a>
+    <a onclick="showPage('times')" data-page="times"><span class="icon">👥</span><span>Times</span></a>
+    <a onclick="showPage('config')" data-page="config"><span class="icon">⚙️</span><span>Pontuação</span></a>
+    <a onclick="showPage('validador')" data-page="validador"><span class="icon">🔬</span><span>Validador</span></a>
+    <a onclick="showPage('importar')" data-page="importar"><span class="icon">📥</span><span>Importar</span></a>
+    <a onclick="showPage('backup')" data-page="backup"><span class="icon">💾</span><span>Backup</span></a>
+    <a onclick="showPage('auditoria')" data-page="auditoria"><span class="icon">🔍</span><span>Auditoria</span></a>
+  </nav>
+</aside>
+
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header"><div><h2>Dashboard</h2><p>Visão geral da base de dados</p></div></div>
+    <div class="cards-grid">
+      <div class="card"><div class="label">Times</div><div class="value" id="d-times">—</div></div>
+      <div class="card"><div class="label">Partidas</div><div class="value" id="d-partidas">—</div></div>
+      <div class="card"><div class="label">Competições</div><div class="value" id="d-comps">—</div></div>
+      <div class="card"><div class="label">Anos cobertos</div><div class="value" id="d-anos">—</div></div>
+    </div>
+    <p class="section-title">Últimas Partidas</p>
+    <div class="table-wrap" id="dash-partidas"></div>
+  </div>
+
+  <!-- RANKING -->
+  <div class="page" id="page-ranking">
+    <div class="page-header"><div><h2>Ranking</h2><p>Pontuação ponderada por nível do adversário e mando de campo</p></div></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px">
+      <div class="form-group" style="margin:0">
+        <label>Período</label>
+        <select id="r-modo" onchange="onRankModoChange()" style="padding:8px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">
+          <option value="todos">Todos os anos</option>
+          <option value="ano">Ano específico</option>
+          <option value="periodo">Período (de/até)</option>
+        </select>
+      </div>
+      <div id="r-filtro-ano" style="display:none" class="form-group" style="margin:0">
+        <label>Ano</label>
+        <input type="number" id="r-ano" placeholder="ex: 2024" style="width:100px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" oninput="carregarRanking()">
+      </div>
+      <div id="r-filtro-periodo" style="display:none;gap:8px;display:none;align-items:flex-end">
+        <div class="form-group" style="margin:0"><label>De</label><input type="number" id="r-ano-de" placeholder="ex: 2018" style="width:90px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" oninput="carregarRanking()"></div>
+        <div class="form-group" style="margin:0"><label>Até</label><input type="number" id="r-ano-ate" placeholder="ex: 2024" style="width:90px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" oninput="carregarRanking()"></div>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Mín. jogos</label>
+        <input type="number" id="r-min-jogos" value="1" min="1" style="width:70px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" oninput="carregarRanking()">
+      </div>
+    </div>
+    <div class="table-wrap" id="ranking-table"></div>
+  </div>
+
+  <!-- PARTIDAS -->
+  <div class="page" id="page-partidas">
+    <div class="page-header">
+      <div><h2>Partidas</h2><p>Histórico completo</p></div>
+      <button class="btn btn-primary" onclick="toggleForm('form-partida')">➕ Nova Partida</button>
+    </div>
+    <div id="form-partida" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+      <p class="section-title">Registrar Partida</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Data</label><input type="date" id="p-data"></div>
+        <div class="form-group"><label>Time Casa</label><select id="p-casa"></select></div>
+        <div class="form-group"><label>Time Fora</label><select id="p-fora"></select></div>
+        <div class="form-group"><label>Gols Casa</label><input type="number" id="p-gc" min="0" value="0"></div>
+        <div class="form-group"><label>Gols Fora</label><input type="number" id="p-gf" min="0" value="0"></div>
+        <div class="form-group"><label>Competição</label><select id="p-comp"></select></div>
+        <div class="form-group"><label>Fase</label><input type="text" id="p-fase" placeholder="ex: Rodada 12, Final..."></div>
+        <div class="form-group"><label>Mando</label>
+          <select id="p-mando"><option value="normal">Normal (casa/fora)</option><option value="neutro">Campo neutro</option></select>
+        </div>
+      </div>
+      <!-- Preview de pontuação -->
+      <div id="pts-preview" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+        <p style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Preview de Pontuação</p>
+        <div id="pts-preview-content" style="font-family:'Barlow Condensed',sans-serif;font-size:16px;"></div>
+      </div>
+      <button class="btn btn-primary" onclick="salvarPartida()">💾 Salvar Partida</button>
+      <button class="btn btn-ghost" style="margin-left:8px" onclick="toggleForm('form-partida')">Cancelar</button>
+    </div>
+    <div class="filter-bar">
+      <div class="form-group"><label>Time</label><select id="f-time" onchange="carregarPartidas()"><option value="">Todos</option></select></div>
+      <div class="form-group"><label>Ano</label><input type="number" id="f-ano" placeholder="ex: 2024" style="width:110px" oninput="carregarPartidas()"></div>
+    </div>
+    <div class="table-wrap" id="partidas-table"></div>
+  </div>
+
+  <!-- H2H -->
+  <div class="page" id="page-h2h">
+    <div class="page-header"><div><h2>Head-to-Head</h2><p>Comparativo direto entre dois times</p></div></div>
+    <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;">
+      <div class="form-group"><label>Time 1</label><select id="h-t1" style="min-width:200px"></select></div>
+      <div class="form-group"><label>Time 2</label><select id="h-t2" style="min-width:200px"></select></div>
+      <button class="btn btn-primary" onclick="carregarH2H()">🔍 Comparar</button>
+    </div>
+    <div id="h2h-result"></div>
+  </div>
+
+  <!-- TIMES -->
+  <div class="page" id="page-times">
+    <div class="page-header">
+      <div><h2>Times</h2><p>Cadastro e níveis anuais</p></div>
+      <button class="btn btn-primary" onclick="toggleForm('form-time')">➕ Novo Time</button>
+    </div>
+    <div id="form-time" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+      <p class="section-title">Cadastrar Time</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Nome completo</label><input type="text" id="t-nome"></div>
+        <div class="form-group"><label>Sigla</label><input type="text" id="t-curto" maxlength="10"></div>
+        <div class="form-group"><label>País</label>
+          <select id="t-pais"><option>Brasil</option><option>Argentina</option><option>Uruguai</option><option>Colômbia</option><option>Chile</option><option>Outro</option></select>
+        </div>
+        <div class="form-group"><label>Estado</label><input type="text" id="t-estado"></div>
+      </div>
+      <div class="divider"></div>
+      <p class="section-title">Nível no Ano</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Ano</label><input type="number" id="t-ano" value="2024"></div>
+        <div class="form-group"><label>Nível</label>
+          <select id="t-nivel">
+            <option value="1">Nível 1 — Série A / Libertadores</option>
+            <option value="2">Nível 2 — Série B / Sul-Americana</option>
+            <option value="3">Nível 3 — Série C / Regionais</option>
+            <option value="4">Nível 4 — Série D e abaixo</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Divisão (opcional)</label><input type="text" id="t-divisao"></div>
+      </div>
+      <button class="btn btn-primary" onclick="salvarTime()">💾 Salvar</button>
+      <button class="btn btn-ghost" style="margin-left:8px" onclick="toggleForm('form-time')">Cancelar</button>
+    </div>
+    <div class="table-wrap" id="times-table"></div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="page" id="page-config">
+    <div class="page-header">
+      <div><h2>Configuração de Pontuação</h2><p>Ajuste pesos e multiplicadores do sistema</p></div>
+      <button class="btn btn-primary" onclick="salvarConfig()">💾 Salvar e Recalcular</button>
+    </div>
+    <p class="section-title">Vitória</p>
+    <div class="config-grid" id="config-vitoria"></div>
+    <div class="divider"></div>
+    <p class="section-title">Derrota</p>
+    <div class="config-grid" id="config-derrota"></div>
+    <div class="divider"></div>
+    <p class="section-title">Empate</p>
+    <div class="config-grid" id="config-empate"></div>
+    <div class="divider"></div>
+    <p class="section-title">Mando de Campo</p>
+    <div class="config-grid" id="config-mando"></div>
+    <div class="divider"></div>
+    <p class="section-title">Tabela de Pontuação (valores atuais)</p>
+    <div class="table-wrap"><table class="pts-table" id="pts-table-preview">
+      <thead><tr>
+        <th>Situação do Vencedor</th><th>Pts Vencedor</th><th>Pts Perdedor</th>
+        <th>Empate (time A)</th><th>Empate (adv)</th>
+      </tr></thead>
+      <tbody id="pts-table-body"></tbody>
+    </table></div>
+  </div>
+
+
+  <!-- VALIDADOR -->
+  <div class="page" id="page-validador">
+    <div class="page-header"><div><h2>Validador de Pontuação</h2><p>Simule e verifique o cálculo passo a passo</p></div></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;">
+      <p class="section-title">Simular Partida</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Gols Casa</label><input type="number" id="v-gc" min="0" value="2" oninput="validar()"></div>
+        <div class="form-group"><label>Gols Fora</label><input type="number" id="v-gf" min="0" value="0" oninput="validar()"></div>
+        <div class="form-group"><label>Nível Casa</label><select id="v-nc" onchange="validar()">
+          <option value="">—</option><option value="1">N1</option><option value="2">N2</option>
+          <option value="3">N3</option><option value="4" selected>N4</option></select></div>
+        <div class="form-group"><label>Nível Fora</label><select id="v-nf" onchange="validar()">
+          <option value="">—</option><option value="1">N1</option><option value="2">N2</option>
+          <option value="3">N3</option><option value="4" selected>N4</option></select></div>
+        <div class="form-group"><label>Mando</label><select id="v-mando" onchange="validar()">
+          <option value="normal">Normal</option><option value="neutro">Neutro</option></select></div>
+        <div class="form-group"><label>Mult. Competição</label>
+          <input type="number" id="v-mc" step="0.1" value="0.7" oninput="validar()"></div>
+      </div>
+      <div id="validator-result"></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+      <p class="section-title">Tabela de Referência (pré-mando e pré-competição)</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">×1.0 casa / ×1.20 fora × mult.competição = valor final</p>
+      <div class="table-wrap"><table class="pts-table">
+        <thead><tr><th>Situação do Time A</th><th>Vitória (A)</th><th>Derrota (A)</th><th>Empate (A)</th><th>Empate (B)</th></tr></thead>
+        <tbody id="ref-table-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- IMPORTAR -->
+  <div class="page" id="page-auditoria">
+    <div class="page-header">
+      <div><h2>Auditoria de Pontuação</h2><p>Confira os detalhes de cada partida</p></div>
+    </div>
+    <!-- Filtros -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+      <div style="flex:1;min-width:130px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Ano</label>
+        <select id="aud-ano" onchange="carregarAuditoria()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div style="flex:2;min-width:180px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Competição</label>
+        <select id="aud-comp" onchange="carregarAuditoria()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div style="flex:2;min-width:180px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Time (casa ou fora)</label>
+        <input id="aud-time" type="text" placeholder="Nome do time..." oninput="carregarAuditoria()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px;box-sizing:border-box">
+      </div>
+      <div style="flex:1;min-width:100px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Resultado</label>
+        <select id="aud-res" onchange="carregarAuditoria()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px">
+          <option value="">Todos</option>
+          <option value="V">V casa</option>
+          <option value="D">V fora</option>
+          <option value="E">Empate</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:100px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Mostrar</label>
+        <select id="aud-limite" onchange="carregarAuditoria()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="999999">Todos</option>
+        </select>
+      </div>
+    </div>
+    <div id="aud-total" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+    <!-- Lista de partidas -->
+    <div id="aud-lista"></div>
+  </div>
+
+  <div class="page" id="page-importar">
+    <div class="page-header"><div><h2>Importar Dados</h2><p>Carregue resultados e times via arquivo</p></div></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;">
+      <p class="section-title">📄 Importar Resultados (.txt / .tsv)</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+        Formato — colunas separadas por <strong>TAB</strong>:<br>
+        <code style="background:var(--surface2);padding:3px 8px;border-radius:4px;font-size:12px;margin-top:4px;display:inline-block">UF [TAB] Time Casa [TAB] 0-0 [TAB] Time Fora</code><br>
+        <span style="font-size:12px">Ex: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">BA&nbsp;&nbsp;&nbsp;Bahia&nbsp;&nbsp;&nbsp;2-1&nbsp;&nbsp;&nbsp;Vitória</code></span>
+      </p>
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group"><label>Ano</label><input type="number" id="imp-ano" value="2011"></div>
+        <div class="form-group"><label>Competição</label>
+          <select id="imp-comp"><option value="auto">Auto (por UF)</option><option value="">— Nenhuma —</option></select></div>
+        <div class="form-group"><label>Nível padrão (times novos)</label>
+          <select id="imp-nivel-default"><option value="4" selected>N4</option><option value="3">N3</option><option value="2">N2</option><option value="1">N1</option></select></div>
+        <div class="form-group"><label>Mando</label>
+          <select id="imp-mando"><option value="normal">Normal (casa/fora)</option><option value="neutro">Neutro</option></select></div>
+      </div>
+      <div onclick="document.getElementById('imp-file').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="handleDrop(event,'imp-texto')"
+           style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color .2s">
+        <div style="font-size:24px;margin-bottom:4px">📂</div>
+        <div style="font-weight:600">Arraste .txt ou .tsv aqui, ou clique para selecionar</div>
+        <input type="file" id="imp-file" accept=".txt,.tsv,.csv" style="display:none" onchange="loadFile(this,'imp-texto')">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Ou cole o conteúdo aqui</label>
+        <textarea id="imp-texto" rows="8" oninput="previewImport()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-family:monospace;font-size:12px;resize:vertical;outline:none" placeholder="BA&#9;Bahia&#9;2-1&#9;Vitória&#10;BA&#9;Vitória&#9;0-0&#9;Sport"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="executarImport()">⚡ Importar Partidas</button>
+        <span id="imp-status" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <div id="imp-preview" style="display:none;margin-top:16px">
+        <p class="section-title" style="margin-bottom:8px">Pré-visualização</p>
+        <div class="table-wrap" id="imp-preview-table"></div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+      <p class="section-title">👥 Importar Cadastro de Times (.tsv)</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+        Formato: <code style="background:var(--surface2);padding:3px 8px;border-radius:4px;font-size:12px">Nome [TAB] Sigla [TAB] Estado [TAB] País [TAB] 2010 [TAB] 2011 ... [TAB] 2025</code><br>
+        <span style="font-size:12px">Primeira linha = cabeçalho com os anos. País ≠ Brasil → N1 automático.</span>
+      </p>
+      <div onclick="document.getElementById('imp-times-file').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="handleDrop(event,'imp-times-texto')"
+           style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color .2s">
+        <div style="font-size:24px;margin-bottom:4px">👥</div>
+        <div style="font-weight:600">Arraste arquivo de times aqui</div>
+        <input type="file" id="imp-times-file" accept=".txt,.tsv,.csv" style="display:none" onchange="loadFile(this,'imp-times-texto')">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Ou cole o conteúdo</label>
+        <textarea id="imp-times-texto" rows="5" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-family:monospace;font-size:12px;resize:vertical;outline:none" placeholder="Nome&#9;Sigla&#9;Estado&#9;País&#9;2010&#9;2011&#10;Bahia&#9;BAH&#9;BA&#9;Brasil&#9;1&#9;1"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-primary" onclick="importarTimes()">⚡ Importar Times</button>
+        <span id="imp-times-status" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BACKUP -->
+  <div class="page" id="page-backup">
+    <div class="page-header"><div><h2>Backup</h2><p>Exportar e importar o banco de dados completo</p></div></div>
+
+    <!-- EXPORTAR -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px">
+      <p class="section-title">📤 Exportar banco de dados</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Salva todos os times, partidas, competições e configurações em um arquivo <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">.frdb</code> no seu computador.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="exportarBanco()">⬇️ Baixar backup (.frdb)</button>
+        <button class="btn btn-ghost" onclick="exportarJSON()">📄 Exportar como JSON</button>
+      </div>
+      <div id="export-info" style="margin-top:12px;font-size:12px;color:var(--muted)"></div>
+    </div>
+
+    <!-- IMPORTAR -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
+      <p class="section-title">📥 Importar banco de dados</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Carrega um arquivo <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">.frdb</code> ou <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">.json</code> exportado anteriormente.<br>
+        <strong style="color:var(--red)">⚠️ Atenção:</strong> substitui completamente o banco atual.
+      </p>
+      <div onclick="document.getElementById('backup-file').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="handleDropBackup(event)"
+           style="border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px;transition:border-color .2s">
+        <div style="font-size:32px;margin-bottom:8px">📂</div>
+        <div style="font-weight:600;margin-bottom:4px">Arraste o arquivo .frdb ou .json aqui</div>
+        <div style="font-size:12px;color:var(--muted)">ou clique para selecionar</div>
+        <input type="file" id="backup-file" accept=".frdb,.json" style="display:none" onchange="carregarArquivoBackup(this)">
+      </div>
+      <div id="backup-preview" style="display:none;background:var(--surface2);border-radius:8px;padding:16px;margin-bottom:16px">
+        <p class="section-title" style="margin-bottom:8px">Resumo do arquivo</p>
+        <div id="backup-preview-info" style="font-size:13px;color:var(--muted)"></div>
+      </div>
+      <button id="btn-restaurar" class="btn btn-primary" style="display:none" onclick="restaurarBanco()">✅ Restaurar banco</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+// ENGINE DE PONTUAÇÃO (espelho do Python)
+// ─────────────────────────────────────────
+const DEFAULT_CFG = {
+  pts_vitoria_base: 100,
+  pts_vitoria_bonus_d1: 50, pts_vitoria_bonus_d2: 125, pts_vitoria_bonus_d3: 250,
+  pts_vitoria_fator_d1: 0.50, pts_vitoria_fator_d2: 0.25, pts_vitoria_fator_d3: 0.0,
+  pts_derrota_pen_d1: -50, pts_derrota_pen_d2: -125, pts_derrota_pen_d3: -200,
+  pts_empate_base: 33, pts_empate_bonus_fator: 1/3, pts_empate_pen_nivel: -11,
+  mult_mando_casa: 1.0, mult_mando_fora: 1.20, mult_mando_neutro: 1.0
+};
+
+function getCfg() {
+  const rows = query("SELECT chave, valor FROM config_pontuacao");
+  const c = {};
+  rows.forEach(r => c[r.chave] = parseFloat(r.valor));
+  return Object.assign({}, DEFAULT_CFG, c);
+}
+
+function calcPtsTime(resultado, diff, cfg) {
+  // diff > 0 → este time é mais forte (nível numérico menor)
+  // diff < 0 → este time é mais fraco
+  if (resultado === 'V') {
+    if (diff === 0) return cfg.pts_vitoria_base;
+    if (diff < 0) {
+      const desv = Math.abs(diff);
+      const bonusMap = {1: cfg.pts_vitoria_bonus_d1, 2: cfg.pts_vitoria_bonus_d2, 3: cfg.pts_vitoria_bonus_d3};
+      const bonus = bonusMap[desv] ?? cfg.pts_vitoria_bonus_d3;
+      return cfg.pts_vitoria_base + bonus;
+    }
+    // diff > 0 → mais forte
+    const fatores = {1: cfg.pts_vitoria_fator_d1, 2: cfg.pts_vitoria_fator_d2, 3: cfg.pts_vitoria_fator_d3};
+    return cfg.pts_vitoria_base * (fatores[diff] || 0);
+  }
+  if (resultado === 'D') {
+    if (diff > 0) {
+      const penMap = {1: cfg.pts_derrota_pen_d1, 2: cfg.pts_derrota_pen_d2, 3: cfg.pts_derrota_pen_d3};
+      return penMap[diff] ?? cfg.pts_derrota_pen_d3;
+    }
+    return 0;
+  }
+  // Empate
+  if (diff === 0) return cfg.pts_empate_base;
+  if (diff < 0) {
+    // Mais fraco → bônus
+    const desv = Math.abs(diff);
+    return Math.ceil(cfg.pts_empate_base + cfg.pts_empate_base * cfg.pts_empate_bonus_fator * desv);
+  }
+  // Mais forte → penalidade
+  return Math.max(0, cfg.pts_empate_base + diff * cfg.pts_empate_pen_nivel);
+}
+
+function calcPontuacao(golsCasa, golsFora, nivelCasa, nivelFora, mando='normal', multComp=1.0, cfg=null) {
+  if (!cfg) cfg = getCfg();
+  const resultado = golsCasa > golsFora ? 'V' : golsCasa < golsFora ? 'D' : 'E';
+  // diff = nivelFora - nivelCasa: positivo = casa mais forte (nível numérico menor)
+  const diff = (nivelFora != null && nivelCasa != null) ? (nivelFora - nivelCasa) : 0;
+
+  const ptsCasaBase = calcPtsTime(resultado, diff, cfg);
+  const resInv = {V:'D', D:'V', E:'E'}[resultado];
+  const ptsForaBase = calcPtsTime(resInv, -diff, cfg);
+
+  const mmCasa = mando === 'neutro' ? cfg.mult_mando_neutro : cfg.mult_mando_casa;
+  const mmFora = mando === 'neutro' ? cfg.mult_mando_neutro : cfg.mult_mando_fora;
+
+  const TETO = 400;
+  return {
+    ptsCasa: Math.round(Math.min(ptsCasaBase * mmCasa * multComp, TETO) * 100) / 100,
+    ptsFora: Math.round(Math.min(ptsForaBase * mmFora * multComp, TETO) * 100) / 100,
+    diff, resultado, mmCasa, mmFora, multComp
+  };
+}
+
+// ─────────────────────────────────────────
+// SQL.JS INIT
+// ─────────────────────────────────────────
+let DB = null, SQL = null;
+let TIMES = [], COMPS = [];
+
+const DB_SEED = {"times":[],"times_nivel":[],"competicoes":[{"id":1,"nome":"Brasileirão Série A","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":2,"nome":"Brasileirão Série B","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":3,"nome":"Brasileirão Série C","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":4,"nome":"Brasileirão Série D","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":5,"nome":"Copa do Brasil","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":6,"nome":"Copa Libertadores","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":7,"nome":"Copa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":8,"nome":"Recopa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":9,"nome":"Campeonato Paulista","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":10,"nome":"Campeonato Carioca","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":11,"nome":"Campeonato Mineiro","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":12,"nome":"Campeonato Gaúcho","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":13,"nome":"Campeonato Sul-Rio-Grandense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":14,"nome":"Campeonato Paranaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":15,"nome":"Campeonato Baiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":16,"nome":"Campeonato Pernambucano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":17,"nome":"Campeonato Cearense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":18,"nome":"Campeonato Goiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":19,"nome":"Campeonato Alagoano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":20,"nome":"Campeonato Amazonense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":21,"nome":"Campeonato Amapaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":22,"nome":"Campeonato Brasiliense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":23,"nome":"Campeonato Capixaba","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":24,"nome":"Campeonato Maranhense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":25,"nome":"Campeonato Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":26,"nome":"Campeonato Sul-Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":27,"nome":"Campeonato Paraense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":28,"nome":"Campeonato Paraibano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":29,"nome":"Campeonato Piauiense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":30,"nome":"Campeonato Potiguar","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":31,"nome":"Campeonato Rondoniense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":32,"nome":"Campeonato Roraimense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":33,"nome":"Campeonato Sergipano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":34,"nome":"Campeonato Tocantinense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":35,"nome":"Campeonato Acreano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":36,"nome":"Amistoso","tipo":"amistoso","pais":null,"multiplicador":0.5}],"partidas":[],"config_pontuacao":[{"chave":"pts_vitoria_base","valor":100.0,"descricao":"Pontos base por vitória (mesmo nível)"},{"chave":"pts_vitoria_bonus_d1","valor":50.0,"descricao":"Bônus vitória com 1 nível de desvantagem (+50)"},{"chave":"pts_vitoria_bonus_d2","valor":125.0,"descricao":"Bônus vitória com 2 níveis de desvantagem (+125)"},{"chave":"pts_vitoria_bonus_d3","valor":250.0,"descricao":"Bônus vitória com 3 níveis de desvantagem (+250)"},{"chave":"pts_vitoria_fator_d1","valor":0.5,"descricao":"Fator quando vencedor tem 1 nível de vantagem"},{"chave":"pts_vitoria_fator_d2","valor":0.25,"descricao":"Fator quando vencedor tem 2 níveis de vantagem"},{"chave":"pts_vitoria_fator_d3","valor":0.0,"descricao":"Fator quando vencedor tem 3 níveis de vantagem"},{"chave":"pts_derrota_pen_d1","valor":-50.0,"descricao":"Penalidade derrota com 1 nível de desvantagem"},{"chave":"pts_derrota_pen_d2","valor":-125.0,"descricao":"Penalidade derrota com 2 níveis de desvantagem"},{"chave":"pts_derrota_pen_d3","valor":-200.0,"descricao":"Penalidade derrota com 3 níveis de desvantagem"},{"chave":"pts_empate_base","valor":33.0,"descricao":"Pontos base por empate (mesmo nível, ambos)"},{"chave":"pts_empate_bonus_fator","valor":0.3333333333,"descricao":"Fator bônus empate por nível (1/3)"},{"chave":"pts_empate_pen_nivel","valor":-11.0,"descricao":"Penalidade de empate por nível (time mais forte)"},{"chave":"mult_mando_casa","valor":1.0,"descricao":"Multiplicador jogando em casa"},{"chave":"mult_mando_fora","valor":1.2,"descricao":"Multiplicador jogando fora de casa (+20%)"},{"chave":"mult_mando_neutro","valor":1.0,"descricao":"Multiplicador campo neutro"}]};
+
+async function initSQLite() {
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js';
+  document.head.appendChild(script);
+  await new Promise(r => script.onload = r);
+  SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+  DB = new SQL.Database();
+  applySchema();
+  const saved = localStorage.getItem('football_db_v2');
+  if (saved) {
+    try {
+      const loaded = new SQL.Database(new Uint8Array(JSON.parse(saved)));
+      const n = loaded.exec("SELECT COUNT(*) FROM partidas")[0]?.values[0][0] || 0;
+      if (n >= 0) {
+        DB = loaded;
+        // Migração: forçar valores corretos independente do que estava salvo
+        DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa'");
+        DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_fora' AND valor!=1.0");
+        DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_neutro' AND valor!=1.0");
+        DB.run("UPDATE competicoes SET multiplicador=1.0 WHERE multiplicador!=1.0 AND tipo!='amistoso'");
+        DB.run("UPDATE competicoes SET multiplicador=0.5 WHERE tipo='amistoso'");
+        // Recalcular pts de todas as partidas com os novos parâmetros
+        const partidas = DB.exec("SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, COALESCE(c.multiplicador,1.0) AS mc FROM partidas p LEFT JOIN competicoes c ON c.id=p.competicao_id");
+        if (partidas.length) {
+          const cfg = {
+            pts_vitoria_base:100, pts_vitoria_bonus_d1:50, pts_vitoria_bonus_d2:125, pts_vitoria_bonus_d3:250,
+            pts_vitoria_fator_d1:0.5, pts_vitoria_fator_d2:0.25, pts_vitoria_fator_d3:0.0,
+            pts_derrota_pen_d1:-50, pts_derrota_pen_d2:-125, pts_derrota_pen_d3:-200,
+            pts_empate_base:33, pts_empate_bonus_fator:0.3333333333, pts_empate_pen_nivel:-11,
+            mult_mando_casa:1.0, mult_mando_fora:1.0, mult_mando_neutro:1.0
+          };
+          // Buscar config atual do banco (já migrada)
+          try {
+            const cfgRows = DB.exec("SELECT chave, valor FROM config_pontuacao");
+            if (cfgRows.length) cfgRows[0].values.forEach(([k,v]) => { if(cfg.hasOwnProperty(k)) cfg[k]=parseFloat(v); });
+          } catch(e) {}
+          const cols = partidas[0].columns;
+          partidas[0].values.forEach(row => {
+            const p = {};
+            cols.forEach((c,i) => p[c] = row[i]);
+            const gc=p.gols_casa, gf=p.gols_fora, nc=p.nivel_casa, nf=p.nivel_fora, mc=parseFloat(p.mc||1);
+            const res = gc>gf?'V':gc<gf?'D':'E';
+            const diff = (nf!=null&&nc!=null)?(nf-nc):0;
+            const calcPts = (res, d) => {
+              if(res==='V'){if(d===0)return cfg.pts_vitoria_base;if(d<0){const bm={1:cfg.pts_vitoria_bonus_d1,2:cfg.pts_vitoria_bonus_d2,3:cfg.pts_vitoria_bonus_d3};return cfg.pts_vitoria_base+(bm[Math.abs(d)]??cfg.pts_vitoria_bonus_d3);}const fm={1:cfg.pts_vitoria_fator_d1,2:cfg.pts_vitoria_fator_d2,3:cfg.pts_vitoria_fator_d3};return cfg.pts_vitoria_base*(fm[d]||0);}
+              if(res==='D'){if(d>0){const pm={1:cfg.pts_derrota_pen_d1,2:cfg.pts_derrota_pen_d2,3:cfg.pts_derrota_pen_d3};return pm[d]??cfg.pts_derrota_pen_d3;}return 0;}
+              if(d===0)return cfg.pts_empate_base;if(d<0)return Math.ceil(cfg.pts_empate_base+cfg.pts_empate_base*cfg.pts_empate_bonus_fator*Math.abs(d));return Math.max(0,cfg.pts_empate_base+d*cfg.pts_empate_pen_nivel);
+            };
+            const resInv={V:'D',D:'V',E:'E'}[res];
+            const TETO=400;
+            const ptsCasa=Math.round(Math.min(calcPts(res,diff)*cfg.mult_mando_casa*mc,TETO)*100)/100;
+            const ptsFora=Math.round(Math.min(calcPts(resInv,-diff)*cfg.mult_mando_fora*mc,TETO)*100)/100;
+            DB.run("UPDATE partidas SET pts_casa=?, pts_fora=? WHERE id=?", [ptsCasa, ptsFora, p.id]);
+          });
+        }
+      }
+      else { seedFromData(DB_SEED); }
+    } catch(e) { applySchema(); }
+  } else {
+    seedFromData(DB_SEED);
+  }
+  DB.run("PRAGMA foreign_keys = ON");
+  refreshAll();
+}
+
+function seedFromData(data) {
+  data.competicoes.forEach(c => {
+    try { DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (?,?,?,?,?)",
+      [c.id,c.nome,c.tipo,c.pais,c.multiplicador]); } catch(e){}
+  });
+  data.times.forEach(t => {
+    try { DB.run("INSERT OR IGNORE INTO times (id,nome,nome_curto,pais,estado) VALUES (?,?,?,?,?)",
+      [t.id,t.nome,t.nome_curto,t.pais,t.estado]); } catch(e){}
+  });
+  data.times_nivel.forEach(n => {
+    try { DB.run("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel,divisao) VALUES (?,?,?,?)",
+      [n.time_id,n.ano,n.nivel,n.divisao]); } catch(e){}
+  });
+  data.partidas.forEach(p => {
+    try { DB.run("INSERT OR IGNORE INTO partidas (id,data,ano,competicao_id,fase,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      [p.id,p.data,p.ano,p.competicao_id,p.fase,p.time_casa_id,p.time_fora_id,
+       p.gols_casa,p.gols_fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora]); } catch(e){}
+  });
+  data.config_pontuacao.forEach(c => {
+    try { DB.run("INSERT OR IGNORE INTO config_pontuacao (chave,valor,descricao) VALUES (?,?,?)",
+      [c.chave,c.valor,c.descricao]); } catch(e){}
+  });
+  saveDB();
+}
+
+function saveDB() {
+  try { localStorage.setItem('football_db_v2', JSON.stringify(Array.from(DB.export()))); } catch(e){}
+}
+
+function applySchema() {
+  DB.run(`
+    CREATE TABLE IF NOT EXISTS times (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE, nome_curto TEXT, pais TEXT DEFAULT 'Brasil', estado TEXT);
+    CREATE TABLE IF NOT EXISTS times_nivel (id INTEGER PRIMARY KEY AUTOINCREMENT, time_id INTEGER NOT NULL REFERENCES times(id), ano INTEGER NOT NULL, nivel INTEGER NOT NULL, divisao TEXT, UNIQUE(time_id,ano));
+    CREATE TABLE IF NOT EXISTS competicoes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, tipo TEXT NOT NULL, pais TEXT, multiplicador REAL NOT NULL DEFAULT 1.0);
+    CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, ano INTEGER NOT NULL, competicao_id INTEGER REFERENCES competicoes(id), fase TEXT, time_casa_id INTEGER NOT NULL REFERENCES times(id), time_fora_id INTEGER NOT NULL REFERENCES times(id), gols_casa INTEGER NOT NULL, gols_fora INTEGER NOT NULL, nivel_casa INTEGER, nivel_fora INTEGER, pts_casa REAL, pts_fora REAL, observacoes TEXT);
+    CREATE TABLE IF NOT EXISTS config_pontuacao (id INTEGER PRIMARY KEY AUTOINCREMENT, chave TEXT NOT NULL UNIQUE, valor REAL NOT NULL, descricao TEXT);
+    INSERT OR IGNORE INTO config_pontuacao (chave, valor, descricao) VALUES
+      ('pts_vitoria_base',100,'Pontos base por vitória (mesmo nível)'),
+      ('pts_vitoria_bonus_d1',50,'Bônus vitória com 1 nível de desvantagem'),
+      ('pts_vitoria_bonus_d2',125,'Bônus vitória com 2 níveis de desvantagem'),
+      ('pts_vitoria_bonus_d3',250,'Bônus vitória com 3 níveis de desvantagem'),
+      ('pts_vitoria_fator_d1',0.50,'Fator vitória com 1 nível de vantagem'),
+      ('pts_vitoria_fator_d2',0.25,'Fator vitória com 2 níveis de vantagem'),
+      ('pts_vitoria_fator_d3',0.0,'Fator vitória com 3 níveis de vantagem'),
+      ('pts_derrota_pen_d1',-50,'Penalidade derrota com 1 nível de desvantagem'),
+      ('pts_derrota_pen_d2',-125,'Penalidade derrota com 2 níveis de desvantagem'),
+      ('pts_derrota_pen_d3',-200,'Penalidade derrota com 3 níveis de desvantagem'),
+      ('pts_empate_base',33,'Pontos base por empate (mesmo nível)'),
+      ('pts_empate_bonus_fator',0.3333333333,'Fator bônus empate por nível (1/3)'),
+      ('pts_empate_pen_nivel',-11,'Penalidade de empate por nível (mais forte)'),
+      ('mult_mando_casa',1.0,'Multiplicador jogando em casa'),
+      ('mult_mando_fora',1.20,'Multiplicador jogando fora de casa (+20%)'),
+      ('mult_mando_neutro',1.0,'Multiplicador campo neutro');
+    UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa' AND valor!=1.0;
+    INSERT OR IGNORE INTO competicoes (nome, tipo, pais, multiplicador) VALUES
+      ('Brasileirão Série A','nacional','Brasil',1.2),('Brasileirão Série B','nacional','Brasil',1.0),
+      ('Brasileirão Série C','nacional','Brasil',0.8),('Brasileirão Série D','nacional','Brasil',0.6),
+      ('Copa do Brasil','nacional','Brasil',1.1),('Copa Libertadores','continental','CONMEBOL',1.5),
+      ('Copa Sul-Americana','continental','CONMEBOL',1.3),('Recopa Sul-Americana','continental','CONMEBOL',1.2),
+      ('Campeonato Paulista','nacional','Brasil',0.7),('Campeonato Carioca','nacional','Brasil',0.7),
+      ('Campeonato Mineiro','nacional','Brasil',0.7),('Campeonato Gaúcho','nacional','Brasil',0.7),
+      ('Campeonato Sul-Rio-Grandense','nacional','Brasil',0.7),('Campeonato Paranaense','nacional','Brasil',0.7),
+      ('Campeonato Baiano','nacional','Brasil',0.7),('Campeonato Pernambucano','nacional','Brasil',0.7),
+      ('Campeonato Cearense','nacional','Brasil',0.7),('Campeonato Goiano','nacional','Brasil',0.7),
+      ('Campeonato Alagoano','nacional','Brasil',0.7),('Campeonato Amazonense','nacional','Brasil',0.7),
+      ('Campeonato Amapaense','nacional','Brasil',0.7),('Campeonato Brasiliense','nacional','Brasil',0.7),
+      ('Campeonato Capixaba','nacional','Brasil',0.7),('Campeonato Maranhense','nacional','Brasil',0.7),
+      ('Campeonato Mato-Grossense','nacional','Brasil',0.7),('Campeonato Sul-Mato-Grossense','nacional','Brasil',0.7),
+      ('Campeonato Paraense','nacional','Brasil',0.7),('Campeonato Paraibano','nacional','Brasil',0.7),
+      ('Campeonato Piauiense','nacional','Brasil',0.7),('Campeonato Potiguar','nacional','Brasil',0.7),
+      ('Campeonato Rondoniense','nacional','Brasil',0.7),('Campeonato Roraimense','nacional','Brasil',0.7),
+      ('Campeonato Sergipano','nacional','Brasil',0.7),('Campeonato Tocantinense','nacional','Brasil',0.7),
+      ('Campeonato Acreano','nacional','Brasil',0.7),('Amistoso','amistoso',null,0.5);
+  `);
+}
+
+function query(sql, params=[]) {
+  try { const s=DB.prepare(sql); s.bind(params); const r=[]; while(s.step()) r.push(s.getAsObject()); s.free(); return r; }
+  catch(e){ console.error(e,sql); return []; }
+}
+function exec(sql, params=[]) {
+  try { const s=DB.prepare(sql); s.run(params); s.free(); saveDB(); }
+  catch(e){ toast('Erro: '+e.message,true); throw e; }
+}
+
+function resolveNivel(timeId, ano) {
+  // Times estrangeiros = N1 fixo
+  const t = query("SELECT pais FROM times WHERE id=?", [timeId])[0];
+  if (t && t.pais && t.pais !== 'Brasil') return 1;
+  const r = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?", [timeId, ano]);
+  return r.length ? r[0].nivel : null;
+}
+
+function recalcularTodasPartidas() {
+  const partidas = query("SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, COALESCE(c.multiplicador,1.0) AS mc FROM partidas p LEFT JOIN competicoes c ON c.id=p.competicao_id");
+  const cfg = getCfg();
+  partidas.forEach(p => {
+    const r = calcPontuacao(p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, 'normal', p.mc, cfg);
+    exec("UPDATE partidas SET pts_casa=?, pts_fora=? WHERE id=?", [r.ptsCasa, r.ptsFora, p.id]);
+  });
+  return partidas.length;
+}
+
+// ─────────────────────────────────────────
+// REFRESH & SELECTS
+// ─────────────────────────────────────────
+function refreshAll() {
+  TIMES = query("SELECT * FROM times ORDER BY nome");
+  COMPS = query("SELECT * FROM competicoes ORDER BY multiplicador DESC");
+  populateSelects();
+  carregarDashboard(); carregarRanking(); carregarPartidas();
+  carregarTimes(); carregarConfig();
+}
+
+function populateSelects() {
+  const tOpts = TIMES.map(t=>`<option value="${t.id}">${t.nome_curto?t.nome_curto+' — ':''}${t.nome}</option>`).join('');
+  const cOpts = '<option value="">— Sem competição —</option>'+COMPS.map(c=>`<option value="${c.id}">${c.nome} (${c.multiplicador}×)</option>`).join('');
+  ['p-casa','p-fora','h-t1','h-t2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=tOpts; });
+  const pc=document.getElementById('p-comp'); if(pc) pc.innerHTML=cOpts;
+  const ft=document.getElementById('f-time'); if(ft) ft.innerHTML='<option value="">Todos</option>'+tOpts;
+}
+
+// ─────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────
+function carregarDashboard() {
+  document.getElementById('d-times').textContent = query("SELECT COUNT(*) as n FROM times")[0]?.n ?? 0;
+  document.getElementById('d-partidas').textContent = query("SELECT COUNT(*) as n FROM partidas")[0]?.n ?? 0;
+  document.getElementById('d-comps').textContent = query("SELECT COUNT(DISTINCT competicao_id) as n FROM partidas WHERE competicao_id IS NOT NULL")[0]?.n ?? 0;
+  document.getElementById('d-anos').textContent = query("SELECT COUNT(DISTINCT ano) as n FROM partidas")[0]?.n ?? 0;
+  const rows = query(`SELECT p.data, tc.nome AS casa, p.gols_casa, p.gols_fora, tf.nome AS fora, p.nivel_casa, p.nivel_fora, p.pts_casa, p.pts_fora, COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id ORDER BY p.data DESC LIMIT 8`);
+  document.getElementById('dash-partidas').innerHTML = renderPartidasTable(rows);
+}
+
+// ─────────────────────────────────────────
+// RANKING
+// ─────────────────────────────────────────
+function onRankModoChange() {
+  const modo = document.getElementById('r-modo').value;
+  document.getElementById('r-filtro-ano').style.display = modo === 'ano' ? 'block' : 'none';
+  document.getElementById('r-filtro-periodo').style.display = modo === 'periodo' ? 'flex' : 'none';
+  carregarRanking();
+}
+
+function carregarRanking() {
+  const modo = document.getElementById('r-modo')?.value || 'todos';
+  const minJogos = parseInt(document.getElementById('r-min-jogos')?.value||1) || 1;
+
+  let q = `SELECT p.*, tc.nome AS casa_nome, tf.nome AS fora_nome FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id WHERE 1=1`;
+  const params = [];
+
+  if (modo === 'ano') {
+    const ano = parseInt(document.getElementById('r-ano')?.value);
+    if (ano) { q += ' AND p.ano=?'; params.push(ano); }
+  } else if (modo === 'periodo') {
+    const de = parseInt(document.getElementById('r-ano-de')?.value);
+    const ate = parseInt(document.getElementById('r-ano-ate')?.value);
+    if (de) { q += ' AND p.ano>=?'; params.push(de); }
+    if (ate) { q += ' AND p.ano<=?'; params.push(ate); }
+  }
+
+  const partidas = query(q, params);
+  const stats = {};
+  function ensure(id, nome) { if(!stats[id]) stats[id]={nome,j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0}; }
+  partidas.forEach(p => {
+    const ci=p.time_casa_id, fi=p.time_fora_id;
+    ensure(ci,p.casa_nome); ensure(fi,p.fora_nome);
+    stats[ci].j++; stats[fi].j++;
+    stats[ci].gp+=p.gols_casa; stats[ci].gc+=p.gols_fora;
+    stats[fi].gp+=p.gols_fora; stats[fi].gc+=p.gols_casa;
+    const pc=parseFloat(p.pts_casa||0), pf=parseFloat(p.pts_fora||0);
+    stats[ci].pts+=pc; stats[fi].pts+=pf;
+    if(p.gols_casa>p.gols_fora){stats[ci].v++;stats[fi].d++;}
+    else if(p.gols_casa<p.gols_fora){stats[fi].v++;stats[ci].d++;}
+    else{stats[ci].e++;stats[fi].e++;}
+  });
+
+  let ranked = Object.entries(stats)
+    .map(([id,s])=>({id,...s,media:s.j?s.pts/s.j:0}))
+    .filter(r => r.j >= minJogos)
+    .sort((a,b)=>b.pts-a.pts);
+
+  if(!ranked.length){
+    document.getElementById('ranking-table').innerHTML=`<div class="empty-state"><div class="icon">🏆</div><p>Nenhuma partida no período selecionado.</p></div>`;
+    return;
+  }
+
+  // Label do período para exibição
+  let periodoLabel = '';
+  if (modo === 'ano') {
+    const ano = document.getElementById('r-ano')?.value;
+    if (ano) periodoLabel = ` — ${ano}`;
+  } else if (modo === 'periodo') {
+    const de = document.getElementById('r-ano-de')?.value;
+    const ate = document.getElementById('r-ano-ate')?.value;
+    if (de || ate) periodoLabel = ` — ${de||'início'} a ${ate||'hoje'}`;
+  }
+
+  const rows=ranked.map((r,i)=>`<tr>
+    <td><span class="rank-num ${i<3?'top3':''}">${i+1}</span></td>
+    <td style="font-weight:600">${r.nome}</td>
+    <td style="text-align:center">${r.j}</td>
+    <td style="text-align:center;color:var(--green)">${r.v}</td>
+    <td style="text-align:center;color:var(--yellow)">${r.e}</td>
+    <td style="text-align:center;color:var(--red)">${r.d}</td>
+    <td style="text-align:center">${r.gp}</td><td style="text-align:center">${r.gc}</td>
+    <td style="text-align:right"><span class="pts-badge ${r.pts<0?'neg':''}">${parseFloat(r.pts||0).toFixed(1)}</span></td>
+    <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.media||0).toFixed(1)}</td>
+  </tr>`).join('');
+  document.getElementById('ranking-table').innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${ranked.length} times · ${partidas.length} partidas${periodoLabel}</div>
+    <table><thead><tr><th>#</th><th>Time</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th style="text-align:right">Pts Total</th><th style="text-align:right">Pts/Jogo</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ─────────────────────────────────────────
+// PARTIDAS
+// ─────────────────────────────────────────
+function excluirPartida(id, desc) {
+  if(!confirm(`Excluir a partida:\n${desc}\n\nEssa ação não pode ser desfeita.`)) return;
+  exec("DELETE FROM partidas WHERE id=?", [id]);
+  saveDB();
+  carregarPartidas(); carregarRanking(); carregarDashboard();
+}
+
+function renderPartidasTable(rows) {
+  if(!rows.length) return `<div class="empty-state"><div class="icon">📋</div><p>Nenhuma partida.</p></div>`;
+  const trs=rows.map(r=>{
+    const nc=r.nivel_casa?`<span class="badge badge-n${r.nivel_casa}">N${r.nivel_casa}</span>`:'';
+    const nf=r.nivel_fora?`<span class="badge badge-n${r.nivel_fora}">N${r.nivel_fora}</span>`:'';
+    const pc=parseFloat(r.pts_casa||0), pf=parseFloat(r.pts_fora||0);
+    const desc=`${r.data} — ${r.casa||''} ${r.gols_casa}×${r.gols_fora} ${r.fora||''} (${r.comp||'—'})`;
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px">${r.data}</td>
+      <td style="text-align:right;font-weight:600">${r.casa||r.casa_nome||''} ${nc}</td>
+      <td class="score-cell">${r.gols_casa} × ${r.gols_fora}</td>
+      <td style="font-weight:600">${nf} ${r.fora||r.fora_nome||''}</td>
+      <td style="text-align:right"><span class="pts-badge ${pc<0?'neg':''}" style="font-size:12px">${pc>=0?'+':''}${parseFloat(pc||0).toFixed(1)}</span></td>
+      <td><span class="pts-badge ${pf<0?'neg':''}" style="font-size:12px">${pf>=0?'+':''}${parseFloat(pf||0).toFixed(1)}</span></td>
+      <td style="color:var(--muted);font-size:12px">${r.comp||'—'}</td>
+      <td><button onclick="excluirPartida(${r.id}, ${JSON.stringify(desc)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;border-radius:4px;transition:color 0.15s" title="Excluir partida" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr><th>Data</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th style="text-align:right">Pts Casa</th><th>Pts Fora</th><th>Competição</th><th></th></tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function carregarPartidas() {
+  const tid=document.getElementById('f-time')?.value, ano=document.getElementById('f-ano')?.value;
+  let q=`SELECT p.id,p.data,tc.nome AS casa,p.gols_casa,p.gols_fora,tf.nome AS fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE 1=1`;
+  const params=[];
+  if(tid){q+=' AND (p.time_casa_id=? OR p.time_fora_id=?)';params.push(tid,tid);}
+  if(ano){q+=' AND p.ano=?';params.push(parseInt(ano));}
+  q+=' ORDER BY p.data DESC LIMIT 60';
+  document.getElementById('partidas-table').innerHTML=renderPartidasTable(query(q,params));
+}
+
+// Preview de pontuação ao preencher formulário
+function atualizarPreview() {
+  const casaId=document.getElementById('p-casa')?.value;
+  const foraId=document.getElementById('p-fora')?.value;
+  const gc=parseInt(document.getElementById('p-gc')?.value||0);
+  const gf=parseInt(document.getElementById('p-gf')?.value||0);
+  const data=document.getElementById('p-data')?.value;
+  const compId=document.getElementById('p-comp')?.value;
+  const mando=document.getElementById('p-mando')?.value||'normal';
+  const prev=document.getElementById('pts-preview');
+  if(!casaId||!foraId||!data||casaId===foraId){prev.style.display='none';return;}
+  const ano=parseInt(data.substring(0,4));
+  const nc=resolveNivel(casaId,ano), nf=resolveNivel(foraId,ano);
+  let mc=1.0;
+  if(compId){const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0];if(c)mc=c.multiplicador;}
+  const r=calcPontuacao(gc,gf,nc,nf,mando,mc);
+  const cn=TIMES.find(t=>t.id==casaId)?.nome||'Casa';
+  const fn=TIMES.find(t=>t.id==foraId)?.nome||'Fora';
+  document.getElementById('pts-preview-content').innerHTML=
+    `<span style="color:var(--muted)">${cn}</span> <span class="pts-badge ${r.ptsCasa<0?'neg':''}">${r.ptsCasa>=0?'+':''}${r.ptsCasa}</span>&nbsp;&nbsp;
+     <span style="color:var(--muted)">${fn}</span> <span class="pts-badge ${r.ptsFora<0?'neg':''}">${r.ptsFora>=0?'+':''}${r.ptsFora}</span>
+     <span style="color:var(--muted);font-size:12px;margin-left:12px">diff nível: ${r.diff>=0?'+':''}${r.diff} | ×${parseFloat(mc||1).toFixed(1)} comp</span>`;
+  prev.style.display='block';
+}
+
+['p-casa','p-fora','p-gc','p-gf','p-data','p-comp','p-mando'].forEach(id=>{
+  document.addEventListener('change',e=>{ if(e.target.id===id) atualizarPreview(); });
+  document.addEventListener('input',e=>{ if(e.target.id===id) atualizarPreview(); });
+});
+
+function salvarPartida() {
+  const data=document.getElementById('p-data').value;
+  const casaId=parseInt(document.getElementById('p-casa').value);
+  const foraId=parseInt(document.getElementById('p-fora').value);
+  const gc=parseInt(document.getElementById('p-gc').value);
+  const gf=parseInt(document.getElementById('p-gf').value);
+  const compId=document.getElementById('p-comp').value||null;
+  const fase=document.getElementById('p-fase').value||null;
+  const mando=document.getElementById('p-mando').value;
+  if(!data||isNaN(casaId)||isNaN(foraId)){return toast('Preencha todos os campos.',true);}
+  if(casaId===foraId){return toast('Times não podem ser iguais.',true);}
+  const ano=parseInt(data.substring(0,4));
+  const nc=resolveNivel(casaId,ano), nf=resolveNivel(foraId,ano);
+  let mc=1.0;
+  if(compId){const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0];if(c)mc=c.multiplicador;}
+  const r=calcPontuacao(gc,gf,nc,nf,mando,mc);
+  exec(`INSERT INTO partidas (data,ano,competicao_id,fase,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [data,ano,compId,fase,casaId,foraId,gc,gf,nc,nf,r.ptsCasa,r.ptsFora]);
+  toast('Partida registrada!'); toggleForm('form-partida'); refreshAll();
+}
+
+// ─────────────────────────────────────────
+// H2H
+// ─────────────────────────────────────────
+function carregarH2H() {
+  const t1=parseInt(document.getElementById('h-t1').value);
+  const t2=parseInt(document.getElementById('h-t2').value);
+  if(t1===t2){return toast('Selecione times diferentes.',true);}
+  const n1=TIMES.find(t=>t.id==t1)?.nome||'Time 1';
+  const n2=TIMES.find(t=>t.id==t2)?.nome||'Time 2';
+  const partidas=query(`SELECT p.*,tc.nome AS casa_nome,tf.nome AS fora_nome,COALESCE(c.multiplicador,1) AS mc FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE (p.time_casa_id=? AND p.time_fora_id=?) OR (p.time_casa_id=? AND p.time_fora_id=?) ORDER BY p.data DESC`,[t1,t2,t2,t1]);
+  if(!partidas.length){document.getElementById('h2h-result').innerHTML=`<div class="empty-state"><div class="icon">⚔️</div><p>Nenhum confronto registrado.</p></div>`;return;}
+  const s1={v:0,e:0,d:0,gp:0,gc:0,pts:0}, s2={v:0,e:0,d:0,gp:0,gc:0,pts:0};
+  partidas.forEach(p=>{
+    const isT1Casa=p.time_casa_id==t1;
+    const gT1=isT1Casa?p.gols_casa:p.gols_fora, gT2=isT1Casa?p.gols_fora:p.gols_casa;
+    s1.gp+=gT1; s1.gc+=gT2; s2.gp+=gT2; s2.gc+=gT1;
+    s1.pts+=parseFloat(isT1Casa?p.pts_casa:p.pts_fora||0);
+    s2.pts+=parseFloat(isT1Casa?p.pts_fora:p.pts_casa||0);
+    if(gT1>gT2){s1.v++;s2.d++;} else if(gT1<gT2){s2.v++;s1.d++;} else{s1.e++;s2.e++;}
+  });
+  const histRows=partidas.map(p=>{
+    const isT1Casa=p.time_casa_id==t1;
+    const gT1=isT1Casa?p.gols_casa:p.gols_fora, gT2=isT1Casa?p.gols_fora:p.gols_casa;
+    const pts1=parseFloat(isT1Casa?p.pts_casa:p.pts_fora||0);
+    const res=gT1>gT2?'✅':gT1<gT2?'❌':'🟡';
+    return `<tr><td style="color:var(--muted);font-size:12px">${p.data}</td><td style="font-weight:600;text-align:right">${p.casa_nome}</td><td class="score-cell">${p.gols_casa}×${p.gols_fora}</td><td style="font-weight:600">${p.fora_nome}</td><td style="text-align:center">${res}</td><td style="text-align:right"><span class="pts-badge ${pts1<0?'neg':''}" style="font-size:12px">${pts1>=0?'+':''}${parseFloat(pts1||0).toFixed(1)}</span></td></tr>`;
+  }).join('');
+  document.getElementById('h2h-result').innerHTML=`
+    <div class="h2h-header">
+      <div class="h2h-team"><div class="nome">${n1}</div><div style="color:var(--muted);font-size:12px;margin-top:4px">${s1.v}V ${s1.e}E ${s1.d}D</div><div style="margin-top:8px"><span class="pts-badge ${s1.pts<0?'neg':''}">${parseFloat(s1.pts||0).toFixed(1)} pts</span></div></div>
+      <div class="h2h-vs">VS</div>
+      <div class="h2h-team"><div class="nome">${n2}</div><div style="color:var(--muted);font-size:12px;margin-top:4px">${s2.v}V ${s2.e}E ${s2.d}D</div><div style="margin-top:8px"><span class="pts-badge ${s2.pts<0?'neg':''}">${parseFloat(s2.pts||0).toFixed(1)} pts</span></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div class="card"><div class="label">Gols de ${n1}</div><div class="value">${s1.gp} <span style="font-size:14px;color:var(--muted)">pró · ${s1.gc} contra</span></div></div>
+      <div class="card"><div class="label">Gols de ${n2}</div><div class="value">${s2.gp} <span style="font-size:14px;color:var(--muted)">pró · ${s2.gc} contra</span></div></div>
+    </div>
+    <p class="section-title">Histórico (${partidas.length} jogos)</p>
+    <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th style="text-align:center">Res.</th><th style="text-align:right">Pts ${n1}</th></tr></thead><tbody>${histRows}</tbody></table></div>`;
+}
+
+// ─────────────────────────────────────────
+// TIMES
+// ─────────────────────────────────────────
+function carregarTimes() {
+  const times=query(`SELECT t.id,t.nome,t.nome_curto,t.pais,t.estado,GROUP_CONCAT(tn.ano||':N'||tn.nivel,' | ') AS niveis FROM times t LEFT JOIN times_nivel tn ON tn.time_id=t.id GROUP BY t.id ORDER BY t.nome`);
+  if(!times.length){document.getElementById('times-table').innerHTML=`<div class="empty-state"><div class="icon">👥</div><p>Nenhum time cadastrado.</p></div>`;return;}
+  document.getElementById('times-table').innerHTML=`<table><thead><tr><th>Nome</th><th>Sigla</th><th>País</th><th>Estado</th><th>Níveis por Ano</th><th></th></tr></thead><tbody>
+    ${times.map(t=>`<tr>
+      <td style="font-weight:600">${t.nome}</td>
+      <td style="color:var(--muted)">${t.nome_curto||'—'}</td>
+      <td>${t.pais}</td>
+      <td>${t.estado||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${t.niveis||'—'}</td>
+      <td style="white-space:nowrap">
+        <button onclick="abrirEditarTime(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 5px;border-radius:4px;transition:color 0.15s" title="Editar time" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
+        <button onclick="abrirEditarNiveis(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 5px;border-radius:4px;transition:color 0.15s" title="Editar níveis por ano" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">📅</button>
+      </td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function abrirEditarTime(id) {
+  const t = query("SELECT * FROM times WHERE id=?", [id])[0];
+  if(!t) return;
+  const modal = document.getElementById('modal-editar-time');
+  document.getElementById('et-id').value = t.id;
+  document.getElementById('et-nome').value = t.nome;
+  document.getElementById('et-curto').value = t.nome_curto||'';
+  document.getElementById('et-pais').value = t.pais||'Brasil';
+  document.getElementById('et-estado').value = t.estado||'';
+  modal.style.display = 'flex';
+}
+
+function salvarEditarTime() {
+  const id = parseInt(document.getElementById('et-id').value);
+  const nome = document.getElementById('et-nome').value.trim();
+  if(!nome) return toast('Nome obrigatório.', true);
+  const curto = document.getElementById('et-curto').value.trim()||null;
+  const pais = document.getElementById('et-pais').value;
+  const estado = document.getElementById('et-estado').value.trim()||null;
+  exec("UPDATE times SET nome=?, nome_curto=?, pais=?, estado=? WHERE id=?", [nome, curto, pais, estado, id]);
+  saveDB(); fecharModalTime(); refreshAll(); toast('Time atualizado!');
+}
+
+function fecharModalTime() {
+  document.getElementById('modal-editar-time').style.display = 'none';
+}
+
+function abrirEditarNiveis(id) {
+  const t = query("SELECT nome FROM times WHERE id=?", [id])[0];
+  if(!t) return;
+  const niveis = query("SELECT ano, nivel, divisao FROM times_nivel WHERE time_id=? ORDER BY ano DESC", [id]);
+  document.getElementById('en-time-id').value = id;
+  document.getElementById('en-time-nome').textContent = t.nome;
+  document.getElementById('en-novo-ano').value = new Date().getFullYear();
+  renderNiveisModal(niveis, id);
+  document.getElementById('modal-editar-niveis').style.display = 'flex';
+}
+
+function renderNiveisModal(niveis, id) {
+  if(!id) id = parseInt(document.getElementById('en-time-id').value);
+  if(!niveis) niveis = query("SELECT ano, nivel, divisao FROM times_nivel WHERE time_id=? ORDER BY ano DESC", [id]);
+  const opts = n => [1,2,3,4].map(v=>`<option value="${v}" ${v==n?'selected':''}>${v}</option>`).join('');
+  const html = niveis.length ? niveis.map(n=>`
+    <tr>
+      <td style="font-weight:600">${n.ano}</td>
+      <td>
+        <select onchange="salvarNivelAno(${id},${n.ano},this.value,document.getElementById('div-${id}-${n.ano}').value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">
+          ${opts(n.nivel)}
+        </select>
+      </td>
+      <td><input id="div-${id}-${n.ano}" type="text" value="${n.divisao||''}" placeholder="ex: SP" maxlength="10" style="width:80px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" onchange="salvarNivelAno(${id},${n.ano},document.querySelector('tr:has(#div-${id}-${n.ano}) select').value,this.value)"></td>
+      <td><button onclick="excluirNivelAno(${id},${n.ano})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 5px" title="Remover ano" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+    </tr>`).join('') : `<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Nenhum nível cadastrado</td></tr>`;
+  document.getElementById('en-niveis-tbody').innerHTML = html;
+}
+
+function salvarNivelAno(timeId, ano, nivel, divisao) {
+  exec("INSERT INTO times_nivel (time_id,ano,nivel,divisao) VALUES (?,?,?,?) ON CONFLICT(time_id,ano) DO UPDATE SET nivel=excluded.nivel,divisao=excluded.divisao",
+    [timeId, ano, parseInt(nivel), divisao||null]);
+  saveDB(); carregarTimes();
+}
+
+function excluirNivelAno(timeId, ano) {
+  if(!confirm(`Remover nível do ano ${ano}?`)) return;
+  exec("DELETE FROM times_nivel WHERE time_id=? AND ano=?", [timeId, ano]);
+  saveDB(); renderNiveisModal(null, timeId); carregarTimes();
+}
+
+function adicionarNivelAno() {
+  const id = parseInt(document.getElementById('en-time-id').value);
+  const ano = parseInt(document.getElementById('en-novo-ano').value);
+  const nivel = parseInt(document.getElementById('en-novo-nivel').value);
+  const divisao = document.getElementById('en-novo-divisao').value.trim()||null;
+  if(!ano || ano < 1900 || ano > 2100) return toast('Ano inválido.', true);
+  salvarNivelAno(id, ano, nivel, divisao);
+  renderNiveisModal(null, id);
+  toast(`Nível ${ano} salvo!`);
+}
+
+function fecharModalNiveis() {
+  document.getElementById('modal-editar-niveis').style.display = 'none';
+  refreshAll();
+}
+
+function salvarTime() {
+  const nome=document.getElementById('t-nome').value.trim();
+  if(!nome){return toast('Nome obrigatório.',true);}
+  const curto=document.getElementById('t-curto').value.trim()||null;
+  const pais=document.getElementById('t-pais').value;
+  const estado=document.getElementById('t-estado').value.trim()||null;
+  const ano=parseInt(document.getElementById('t-ano').value);
+  const nivel=parseInt(document.getElementById('t-nivel').value);
+  const divisao=document.getElementById('t-divisao').value.trim()||null;
+  try {
+    exec("INSERT OR IGNORE INTO times (nome,nome_curto,pais,estado) VALUES (?,?,?,?)",[nome,curto,pais,estado]);
+    const row=query("SELECT id FROM times WHERE nome=?",[nome])[0];
+    exec("INSERT INTO times_nivel (time_id,ano,nivel,divisao) VALUES (?,?,?,?) ON CONFLICT(time_id,ano) DO UPDATE SET nivel=excluded.nivel,divisao=excluded.divisao",[row.id,ano,nivel,divisao]);
+    toast(`Time "${nome}" salvo!`); toggleForm('form-time'); refreshAll();
+  } catch(e){}
+}
+
+// ─────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────
+function carregarConfig() {
+  const configs=query("SELECT * FROM config_pontuacao ORDER BY id");
+  const grupos={
+    vitoria:['pts_vitoria_base','pts_vitoria_bonus_nivel','pts_vitoria_fator_d1','pts_vitoria_fator_d2','pts_vitoria_fator_d3'],
+    derrota:['pts_derrota_pen_d1','pts_derrota_pen_d2','pts_derrota_pen_d3'],
+    empate:['pts_empate_base','pts_empate_bonus_fator','pts_empate_pen_nivel'],
+    mando:['mult_mando_casa','mult_mando_fora','mult_mando_neutro']
+  };
+  Object.entries(grupos).forEach(([g,chaves])=>{
+    const el=document.getElementById(`config-${g}`);
+    if(!el)return;
+    el.innerHTML=chaves.map(chave=>{
+      const c=configs.find(r=>r.chave===chave);
+      return c?`<div class="config-item"><div><div class="config-key">${c.chave}</div><div class="config-desc">${c.descricao}</div></div><input type="number" step="0.01" id="cfg-${c.chave}" value="${c.valor}" onchange="atualizarTabelaPts()"></div>`:'';
+    }).join('');
+  });
+  atualizarTabelaPts();
+}
+
+function atualizarTabelaPts() {
+  // Lê valores atuais dos inputs (sem salvar ainda)
+  const cfg={...DEFAULT_CFG};
+  Object.keys(DEFAULT_CFG).forEach(k=>{
+    const el=document.getElementById(`cfg-${k}`);
+    if(el) cfg[k]=parseFloat(el.value)||0;
+  });
+  const cenarios=[["3 níveis mais fraco",-3],["2 níveis mais fraco",-2],["1 nível mais fraco",-1],["Mesmo nível",0],["1 nível mais forte",1],["2 níveis mais forte",2],["3 níveis mais forte",3]];
+  const body=cenarios.map(([desc,diff])=>{
+    const pv=calcPtsTimeV2('V',diff,cfg).pts;
+    const pd=calcPtsTimeV2('D',-diff,cfg).pts;
+    const peA=calcPtsTimeV2('E',diff,cfg).pts;
+    const peB=calcPtsTimeV2('E',-diff,cfg).pts;
+    const cls=v=>v>0?'pts-pos':v<0?'pts-neg':'pts-zero';
+    const fmt=v=>v===0?'0':(v>0?'+':'')+parseFloat(v).toFixed(0);
+    return `<tr><td style="text-align:left;color:var(--text)">${desc}</td><td class="${cls(pv)}">${fmt(pv)}</td><td class="${cls(pd)}">${fmt(pd)}</td><td class="${cls(peA)}">${fmt(peA)}</td><td class="${cls(peB)}">${fmt(peB)}</td></tr>`;
+  }).join('');
+  document.getElementById('pts-table-body').innerHTML=body;
+}
+
+function salvarConfig() {
+  const configs=query("SELECT chave FROM config_pontuacao");
+  configs.forEach(c=>{
+    const el=document.getElementById(`cfg-${c.chave}`);
+    if(el) exec("UPDATE config_pontuacao SET valor=? WHERE chave=?",[parseFloat(el.value),c.chave]);
+  });
+  const n=recalcularTodasPartidas();
+  toast(`Config salva! ${n} partidas recalculadas.`);
+  carregarRanking(); carregarPartidas(); carregarDashboard();
+}
+
+
+// ─────────────────────────────────────────
+// VALIDADOR
+// ─────────────────────────────────────────
+function calcPtsTimeV2(resultado, diff, cfg) {
+  let pts, exp;
+  if (resultado === 'V') {
+    if (diff === 0) { pts = cfg.pts_vitoria_base; exp = `Vitória (mesmo nível) → ${pts}`; }
+    else if (diff < 0) {
+      const desv = Math.abs(diff);
+      const bm = {1:cfg.pts_vitoria_bonus_d1,2:cfg.pts_vitoria_bonus_d2,3:cfg.pts_vitoria_bonus_d3};
+      const bonus = bm[desv]??cfg.pts_vitoria_bonus_d3;
+      pts = cfg.pts_vitoria_base + bonus;
+      exp = `Vitória (${desv} nív. mais fraco) → ${cfg.pts_vitoria_base}+${bonus}=${pts}`;
+    } else {
+      const fm = {1:cfg.pts_vitoria_fator_d1,2:cfg.pts_vitoria_fator_d2,3:cfg.pts_vitoria_fator_d3};
+      const fator = fm[diff]??0;
+      pts = cfg.pts_vitoria_base * fator;
+      exp = `Vitória (${diff} nív. mais forte) → ${cfg.pts_vitoria_base}×${fator}=${pts}`;
+    }
+  } else if (resultado === 'D') {
+    if (diff > 0) {
+      const pm = {1:cfg.pts_derrota_pen_d1,2:cfg.pts_derrota_pen_d2,3:cfg.pts_derrota_pen_d3};
+      pts = pm[diff]??cfg.pts_derrota_pen_d3;
+      exp = `Derrota (${diff} nív. mais forte, perdeu) → ${pts}`;
+    } else { pts = 0; exp = diff===0?'Derrota (mesmo nível) → 0':'Derrota (adv mais forte) → 0'; }
+  } else {
+    if (diff === 0) { pts = cfg.pts_empate_base; exp = `Empate (mesmo nível) → ${pts}`; }
+    else if (diff < 0) {
+      const desv = Math.abs(diff);
+      const bonus = cfg.pts_empate_base * cfg.pts_empate_bonus_fator * desv;
+      pts = cfg.pts_empate_base + bonus;
+      exp = `Empate (${desv} nív. mais fraco) → ${cfg.pts_empate_base}+${bonus.toFixed(2)}=${pts.toFixed(2)}`;
+    } else {
+      pts = Math.max(0, cfg.pts_empate_base + diff * cfg.pts_empate_pen_nivel);
+      exp = `Empate (${diff} nív. mais forte) → ${cfg.pts_empate_base}+${diff}×${cfg.pts_empate_pen_nivel}=${pts}`;
+    }
+  }
+  return { pts: Math.round(parseFloat(pts)*10000)/10000, exp };
+}
+
+function calcPontuacaoV2(gc, gf, nc, nf, mando, multComp, cfg) {
+  const resultado = gc>gf?'V':gc<gf?'D':'E';
+  const diff = (nf!=null&&nc!=null)?(nf-nc):0;
+  const r1 = calcPtsTimeV2(resultado, diff, cfg);
+  const r2 = calcPtsTimeV2({V:'D',D:'V',E:'E'}[resultado], -diff, cfg);
+  const mmCasa = mando==='neutro'?cfg.mult_mando_neutro:cfg.mult_mando_casa;
+  const mmFora = mando==='neutro'?cfg.mult_mando_neutro:cfg.mult_mando_fora;
+  const TETO = 400;
+  return {
+    ptsCasa: Math.round(Math.min(r1.pts*mmCasa*multComp,TETO)*100)/100,
+    ptsFora: Math.round(Math.min(r2.pts*mmFora*multComp,TETO)*100)/100,
+    ptsCasaBase: r1.pts, ptsForaBase: r2.pts,
+    expCasa: r1.exp, expFora: r2.exp,
+    diff, resultado, mmCasa, mmFora
+  };
+}
+
+function validar() {
+  const gc = parseInt(document.getElementById('v-gc')?.value??2);
+  const gf = parseInt(document.getElementById('v-gf')?.value??0);
+  const ncRaw = document.getElementById('v-nc')?.value;
+  const nfRaw = document.getElementById('v-nf')?.value;
+  const mando = document.getElementById('v-mando')?.value||'normal';
+  const mc = parseFloat(document.getElementById('v-mc')?.value??1.0);
+  const nc = ncRaw?parseInt(ncRaw):null;
+  const nf = nfRaw?parseInt(nfRaw):null;
+  if (!DB) return;
+  const cfg = getCfg();
+  const r = calcPontuacaoV2(gc,gf,nc,nf,mando,mc,cfg);
+  const res_txt = r.resultado==='V'?'🏠 Vitória da Casa':r.resultado==='D'?'🚌 Vitória de Fora':'🤝 Empate';
+  const diff_txt = r.diff===0?'Mesmo nível':r.diff>0?`Casa ${r.diff} nív. mais forte`:`Casa ${Math.abs(r.diff)} nív. mais fraca`;
+  function fp(v) {
+    const cor=v>0?'var(--green)':v<0?'var(--red)':'var(--muted)';
+    return `<span style="color:${cor};font-weight:700">${v>=0?'+':''}${v}</span>`;
+  }
+  const el = document.getElementById('validator-result');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="background:var(--surface2);border-radius:8px;padding:16px;margin-top:14px;">
+      <div style="font-size:18px;font-weight:700;margin-bottom:14px;color:var(--green)">${res_txt} <span style="font-size:13px;color:var(--muted)">— ${diff_txt}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">🏠 Time da Casa</div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">1</span>Pontuação base</span><span>${fp(r.ptsCasaBase)} <span style="font-size:11px;color:var(--muted)">${r.expCasa}</span></span></div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">2</span>× Mando casa (${r.mmCasa})</span><span>${fp(Math.round(r.ptsCasaBase*r.mmCasa*100)/100)}</span></div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">3</span>× Competição (${mc})</span><span>${fp(Math.round(r.ptsCasaBase*r.mmCasa*mc*100)/100)}</span></div>
+          <div style="border-top:1px solid var(--green);padding-top:8px;margin-top:6px;display:flex;justify-content:space-between">
+            <span style="font-weight:700">Final</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--green)">${fp(r.ptsCasa)}</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">🚌 Time de Fora</div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">1</span>Pontuação base</span><span>${fp(r.ptsForaBase)} <span style="font-size:11px;color:var(--muted)">${r.expFora}</span></span></div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">2</span>× Mando fora (${r.mmFora})</span><span>${fp(Math.round(r.ptsForaBase*r.mmFora*100)/100)}</span></div>
+          <div class="v-row"><span class="v-label"><span class="step-tag">3</span>× Competição (${mc})</span><span>${fp(Math.round(r.ptsForaBase*r.mmFora*mc*100)/100)}</span></div>
+          <div style="border-top:1px solid var(--green);padding-top:8px;margin-top:6px;display:flex;justify-content:space-between">
+            <span style="font-weight:700">Final</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--green)">${fp(r.ptsFora)}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  atualizarRefTable();
+}
+
+function atualizarRefTable() {
+  if (!DB) return;
+  const cfg = getCfg();
+  const cenarios=[["3 níveis mais fraco",-3],["2 níveis mais fraco",-2],["1 nível mais fraco",-1],
+                  ["Mesmo nível",0],["1 nível mais forte",1],["2 níveis mais forte",2],["3 níveis mais forte",3]];
+  const cls=v=>v>0?'pts-pos':v<0?'pts-neg':'pts-zero';
+  const fmt=v=>v===0?'0':(v>0?'+':'')+parseFloat(v).toFixed(1);
+  const body=cenarios.map(([desc,diff])=>{
+    const pv=calcPtsTimeV2('V',diff,cfg).pts, pd=calcPtsTimeV2('D',-diff,cfg).pts;
+    const peA=calcPtsTimeV2('E',diff,cfg).pts, peB=calcPtsTimeV2('E',-diff,cfg).pts;
+    return `<tr><td style="text-align:left;color:var(--text)">${desc}</td><td class="${cls(pv)}">${fmt(pv)}</td><td class="${cls(pd)}">${fmt(pd)}</td><td class="${cls(peA)}">${fmt(peA)}</td><td class="${cls(peB)}">${fmt(peB)}</td></tr>`;
+  }).join('');
+  const el=document.getElementById('ref-table-body');
+  if(el) el.innerHTML=body;
+}
+
+// ─────────────────────────────────────────
+// IMPORTAR RESULTADOS
+// ─────────────────────────────────────────
+const UF_COMP = {"AC": 35, "AL": 19, "AM": 20, "AP": 21, "BA": 15, "CE": 17, "DF": 22, "ES": 23, "GO": 18, "MA": 24, "MG": 11, "MS": 26, "MT": 25, "PA": 27, "PB": 28, "PE": 16, "PI": 29, "PR": 14, "RJ": 10, "RN": 30, "RO": 31, "RR": 32, "RS": 13, "SC": 13, "SE": 33, "SP": 9, "TO": 34};
+
+function loadFile(input, targetId) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById(targetId).value = e.target.result;
+    if (targetId === 'imp-texto') previewImport();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function handleDrop(event, targetId) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById(targetId).value = e.target.result;
+    if (targetId === 'imp-texto') previewImport();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseTSVPartidas(texto) {
+  const linhas = texto.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+  const partidas = [], erros = [];
+  linhas.forEach((linha,i) => {
+    const cols = linha.split('\t');
+    if (cols.length < 4) { erros.push(`Linha ${i+1}: menos de 4 colunas`); return; }
+    const [uf,casa,placar,fora] = cols.map(c=>c.trim());
+    const m = placar.match(/^(\d+)[-x×](\d+)$/i);
+    if (!m) { erros.push(`Linha ${i+1}: placar inválido "${placar}"`); return; }
+    partidas.push({uf:uf.toUpperCase(),casa,gols_casa:parseInt(m[1]),gols_fora:parseInt(m[2]),fora});
+  });
+  return {partidas,erros};
+}
+
+function previewImport() {
+  const texto = document.getElementById('imp-texto').value;
+  if (!texto.trim()) { document.getElementById('imp-preview').style.display='none'; return; }
+  const {partidas,erros} = parseTSVPartidas(texto);
+  document.getElementById('imp-status').textContent = `${partidas.length} partidas encontradas${erros.length?' · '+erros.length+' erros':''}`;
+  if (!partidas.length) { document.getElementById('imp-preview').style.display='none'; return; }
+  const rows = partidas.slice(0,20).map(p => {
+    const res = p.gols_casa>p.gols_fora?'🏠':p.gols_casa<p.gols_fora?'🚌':'🤝';
+    return `<tr><td style="color:var(--muted);font-size:12px">${p.uf}</td><td style="text-align:right;font-weight:600">${p.casa}</td><td class="score-cell">${p.gols_casa}×${p.gols_fora}</td><td style="font-weight:600">${p.fora}</td><td style="text-align:center">${res}</td></tr>`;
+  }).join('');
+  document.getElementById('imp-preview-table').innerHTML = `<table><thead><tr><th>UF</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th>Res</th></tr></thead><tbody>${rows}${partidas.length>20?`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:10px">...e mais ${partidas.length-20} partidas</td></tr>`:''}</tbody></table>`;
+  document.getElementById('imp-preview').style.display='block';
+}
+
+function getOrCreateTime(nome, uf, nivel, ano) {
+  const n = nome.trim();
+  let row = query("SELECT id FROM times WHERE nome=?",[n])[0];
+  if (!row) {
+    exec("INSERT INTO times (nome,pais,estado) VALUES (?,?,?)",[n,'Brasil',uf||null]);
+    row = query("SELECT id FROM times WHERE nome=?",[n])[0];
+  }
+  if (!row) return null;
+  const tid = row.id;
+  if (!query("SELECT id FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0])
+    exec("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)",[tid,ano,nivel]);
+  return tid;
+}
+
+function executarImport() {
+  const texto = document.getElementById('imp-texto').value;
+  if (!texto.trim()) return toast('Nenhum conteúdo para importar.',true);
+  const {partidas,erros} = parseTSVPartidas(texto);
+  if (!partidas.length) return toast('Nenhuma partida válida.',true);
+  const ano = parseInt(document.getElementById('imp-ano').value)||2011;
+  const compSel = document.getElementById('imp-comp').value;
+  const nivelDefault = parseInt(document.getElementById('imp-nivel-default').value)||4;
+  const mando = document.getElementById('imp-mando').value;
+  const cfg = getCfg();
+  let ok=0, fail=0;
+  partidas.forEach(p => {
+    try {
+      let compId = compSel==='auto'?(UF_COMP[p.uf]||null):compSel?parseInt(compSel):null;
+      let mc = 1.0;
+      if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
+      const casaId = getOrCreateTime(p.casa,p.uf,nivelDefault,ano);
+      const foraId = getOrCreateTime(p.fora,p.uf,nivelDefault,ano);
+      if (!casaId||!foraId) throw new Error('time null');
+      const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
+      const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
+      exec("INSERT INTO partidas (data,ano,competicao_id,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        [`${ano}-01-01`,ano,compId,casaId,foraId,p.gols_casa,p.gols_fora,nc,nf,r.ptsCasa,r.ptsFora]);
+      ok++;
+    } catch(e) { fail++; console.error(e,p); }
+  });
+  toast(`${ok} partidas importadas${fail?' · '+fail+' erros':''}.`);
+  document.getElementById('imp-texto').value='';
+  document.getElementById('imp-preview').style.display='none';
+  document.getElementById('imp-status').textContent='';
+  refreshAll();
+}
+
+function importarTimes() {
+  const texto = document.getElementById('imp-times-texto').value.trim();
+  if (!texto) return toast('Nenhum conteúdo.',true);
+  const linhas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  if (linhas.length < 2) return toast('Precisa de cabeçalho + dados.',true);
+  const header = linhas[0].split('\t').map(h=>h.trim());
+  const anosIdx = {};
+  header.forEach((h,i) => { const a=parseInt(h); if(a>=2000&&a<=2100) anosIdx[a]=i; });
+  let timesOk=0, niveisOk=0;
+  linhas.slice(1).forEach(linha => {
+    const cols = linha.split('\t');
+    const nome = cols[0]?.trim(); if(!nome) return;
+    const sigla=cols[1]?.trim()||null, estado=cols[2]?.trim()||null, pais=cols[3]?.trim()||'Brasil';
+    try {
+      exec("INSERT OR IGNORE INTO times (nome,nome_curto,pais,estado) VALUES (?,?,?,?)",[nome,sigla,pais,estado]);
+      const row=query("SELECT id FROM times WHERE nome=?",[nome])[0]; if(!row) return;
+      timesOk++;
+      Object.entries(anosIdx).forEach(([ano,idx]) => {
+        const v=cols[idx]?.trim(); if(!v) return;
+        const nivel=parseInt(v); if(nivel>=1&&nivel<=4) {
+          exec("INSERT INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?) ON CONFLICT(time_id,ano) DO UPDATE SET nivel=excluded.nivel",[row.id,parseInt(ano),nivel]);
+          niveisOk++;
+        }
+      });
+    } catch(e){ console.error(e); }
+  });
+  document.getElementById('imp-times-status').textContent=`${timesOk} times, ${niveisOk} níveis importados`;
+  toast(`${timesOk} times importados!`);
+  refreshAll();
+}
+
+// ─────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────
+
+function inicializarFiltrosAuditoria() {
+  if (!DB) return;
+  const anos = query("SELECT DISTINCT ano FROM partidas ORDER BY ano DESC").map(r=>r.ano);
+  const sel = document.getElementById('aud-ano');
+  if (sel && sel.options.length < 2) {
+    anos.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a; o.textContent = a;
+      sel.appendChild(o);
+    });
+  }
+  const comps = query("SELECT id, nome FROM competicoes ORDER BY nome");
+  const selC = document.getElementById('aud-comp');
+  if (selC && selC.options.length < 2) {
+    comps.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.nome;
+      selC.appendChild(o);
+    });
+  }
+}
+
+function carregarAuditoria() {
+  if (!DB) return;
+  inicializarFiltrosAuditoria();
+  const ano = document.getElementById('aud-ano')?.value || '';
+  const compId = document.getElementById('aud-comp')?.value || '';
+  const timeFiltro = (document.getElementById('aud-time')?.value || '').toLowerCase();
+  const resFiltro = document.getElementById('aud-res')?.value || '';
+  const limite = parseInt(document.getElementById('aud-limite')?.value || 50);
+  const cfg = getCfg();
+
+  let sql = `SELECT p.id, p.data, p.ano, p.fase,
+    p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora,
+    p.pts_casa, p.pts_fora,
+    tc.nome as casa_nome, tf.nome as fora_nome,
+    c.nome as comp_nome, c.multiplicador as mult_comp
+    FROM partidas p
+    JOIN times tc ON tc.id=p.time_casa_id
+    JOIN times tf ON tf.id=p.time_fora_id
+    JOIN competicoes c ON c.id=p.competicao_id
+    WHERE 1=1`;
+  if (ano) sql += ` AND p.ano=${ano}`;
+  if (compId) sql += ` AND p.competicao_id=${compId}`;
+  sql += ` ORDER BY p.data DESC, p.id DESC`;
+
+  let rows = query(sql);
+  
+  // Filtros JS (time e resultado)
+  if (timeFiltro) {
+    rows = rows.filter(r => r.casa_nome.toLowerCase().includes(timeFiltro) || r.fora_nome.toLowerCase().includes(timeFiltro));
+  }
+  if (resFiltro) {
+    rows = rows.filter(r => {
+      const res = r.gols_casa > r.gols_fora ? 'V' : r.gols_casa < r.gols_fora ? 'D' : 'E';
+      return res === resFiltro;
+    });
+  }
+  
+  const total = rows.length;
+  const exibindo = rows.slice(0, limite);
+  
+  document.getElementById('aud-total').textContent = `${total} partida${total!==1?'s':''} encontrada${total!==1?'s':''} · exibindo ${Math.min(total,limite)}`;
+  
+  const lista = document.getElementById('aud-lista');
+  if (!exibindo.length) {
+    lista.innerHTML = '<p style="text-align:center;color:var(--muted);padding:40px">Nenhuma partida encontrada com esses filtros.</p>';
+    return;
+  }
+  
+  lista.innerHTML = exibindo.map(r => {
+    const resultado = r.gols_casa > r.gols_fora ? 'V' : r.gols_casa < r.gols_fora ? 'D' : 'E';
+    const diff = (r.nivel_casa != null && r.nivel_fora != null) ? (r.nivel_fora - r.nivel_casa) : null;
+    
+    // Calcular pontuação ao vivo (para comparação com a armazenada)
+    const mando = 'normal';
+    const mc = r.mult_comp || 1.0;
+    const rv = calcPontuacaoV2(r.gols_casa, r.gols_fora, r.nivel_casa, r.nivel_fora, mando, mc, cfg);
+    
+    const diffPtsC = Math.round((rv.ptsCasa - (r.pts_casa||0))*100)/100;
+    const diffPtsF = Math.round((rv.ptsFora - (r.pts_fora||0))*100)/100;
+    const hasDiff = Math.abs(diffPtsC) > 0.1 || Math.abs(diffPtsF) > 0.1;
+    
+    const nivelStr = diff === null ? 'nível desconh.' : diff === 0 ? 'mesmo nível' : diff > 0 ? `casa +${diff} nív.` : `fora +${Math.abs(diff)} nív.`;
+    
+    function fmtPts(v, cor) {
+      const s = v >= 0 ? '+'+parseFloat(v).toFixed(1) : parseFloat(v).toFixed(1);
+      const c = v > 0 ? 'var(--green)' : v < 0 ? 'var(--red)' : 'var(--muted)';
+      return `<span style="color:${c};font-weight:600">${s}</span>`;
+    }
+    
+    const alertBg = hasDiff ? 'background:rgba(255,100,0,0.1);border-left:3px solid orange;' : '';
+    
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;${alertBg}">
+      <!-- Linha 1: competição + data -->
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px">
+        <span style="font-size:11px;color:var(--muted)">${r.comp_nome}${r.fase?' · '+r.fase:''}</span>
+        <span style="font-size:11px;color:var(--muted)">${r.data||r.ano}</span>
+      </div>
+      <!-- Linha 2: placar central -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:14px">${r.casa_nome}</div>
+          <div style="font-size:11px;color:var(--muted)">N${r.nivel_casa||'?'} · mando</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:800;letter-spacing:2px">${r.gols_casa} × ${r.gols_fora}</div>
+          <div style="font-size:11px;color:var(--muted)">${resultado==='V'?'🏠 Casa':''}${resultado==='D'?'🚌 Fora':''}${resultado==='E'?'🤝 Empate':''}</div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-weight:700;font-size:14px">${r.fora_nome}</div>
+          <div style="font-size:11px;color:var(--muted)">N${r.nivel_fora||'?'} · visitante</div>
+        </div>
+      </div>
+      <!-- Linha 3: pontuação salva vs calculada -->
+      <div style="border-top:1px solid var(--border);padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="font-size:12px">
+          <div style="color:var(--muted);margin-bottom:2px">Salvo: ${fmtPts(r.pts_casa||0)} casa / ${fmtPts(r.pts_fora||0)} fora</div>
+          <div style="color:var(--muted);margin-bottom:2px">Recalc: ${fmtPts(rv.ptsCasa)} casa / ${fmtPts(rv.ptsFora)} fora</div>
+          ${hasDiff ? `<div style="color:orange;font-size:11px">⚠ Diferença: casa ${fmtPts(diffPtsC)} | fora ${fmtPts(diffPtsF)}</div>` : '<div style="color:var(--muted);font-size:11px">✓ Valores conferem</div>'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:right">
+          <div>${nivelStr}</div>
+          <div>×${parseFloat(mc).toFixed(2)} comp · ×${parseFloat(rv.mmCasa).toFixed(2)} casa · ×${parseFloat(rv.mmFora).toFixed(2)} fora</div>
+          <details style="text-align:left;margin-top:4px">
+            <summary style="cursor:pointer;color:var(--accent);font-size:11px">ver cálculo</summary>
+            <div style="margin-top:4px;padding:6px;background:var(--bg);border-radius:4px;font-size:11px">
+              <b>Casa:</b> ${rv.expCasa}<br>× ${parseFloat(rv.mmCasa).toFixed(2)} mando × ${parseFloat(mc).toFixed(2)} comp = ${fmtPts(rv.ptsCasa)}<br>
+              <b>Fora:</b> ${rv.expFora}<br>× ${parseFloat(rv.mmFora).toFixed(2)} mando × ${parseFloat(mc).toFixed(2)} comp = ${fmtPts(rv.ptsFora)}
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.querySelector(`nav a[data-page="${name}"]`).classList.add('active');
+  if(name==='validador'){validar();atualizarRefTable();}
+  if(name==='auditoria'){inicializarFiltrosAuditoria();carregarAuditoria();}
+}
+function toggleForm(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'block':'none';}
+function toast(msg,error=false){const t=document.getElementById('toast');t.textContent=(error?'❌ ':'✅ ')+msg;t.className='toast show'+(error?' error':'');setTimeout(()=>t.className='toast',3500);}
+
+initSQLite().catch(e=>{document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e05252;font-family:monospace">Erro: ${e.message}</div>`;});
+
+// ─────────────────────────────────────────
+// BACKUP — EXPORTAR / IMPORTAR
+// ─────────────────────────────────────────
+function exportarBanco() {
+  try {
+    const data = DB.export();
+    const arr = Array.from(data);
+    const json = JSON.stringify(arr);
+    const blob = new Blob([json], {type: 'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const hoje = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `football-ranking-${hoje}.frdb`;
+    a.click();
+    URL.revokeObjectURL(url);
+    // Info
+    const nPartidas = query('SELECT COUNT(*) AS n FROM partidas')[0]?.n || 0;
+    const nTimes = query('SELECT COUNT(*) AS n FROM times')[0]?.n || 0;
+    document.getElementById('export-info').textContent = `✅ Exportado: ${nTimes} times · ${nPartidas} partidas · ${(json.length/1024).toFixed(1)} KB`;
+  } catch(e) { toast('Erro ao exportar: ' + e.message, true); }
+}
+
+function exportarJSON() {
+  try {
+    const times = query('SELECT * FROM times ORDER BY nome');
+    const niveis = query('SELECT * FROM times_nivel ORDER BY time_id, ano');
+    const comps = query('SELECT * FROM competicoes ORDER BY nome');
+    const partidas = query(`SELECT p.*, tc.nome AS casa_nome, tf.nome AS fora_nome, COALESCE(c.nome,'') AS comp_nome
+      FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id
+      LEFT JOIN competicoes c ON c.id=p.competicao_id ORDER BY p.data`);
+    const config = query('SELECT * FROM config_pontuacao');
+    const payload = { versao: 2, exportado: new Date().toISOString(), times, niveis, competicoes: comps, partidas, config_pontuacao: config };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const hoje = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `football-ranking-${hoje}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('export-info').textContent = `✅ JSON exportado: ${times.length} times · ${partidas.length} partidas`;
+  } catch(e) { toast('Erro ao exportar JSON: ' + e.message, true); }
+}
+
+let _backupPayload = null;
+
+function handleDropBackup(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) processarArquivoBackup(file);
+}
+
+function carregarArquivoBackup(input) {
+  const file = input.files[0];
+  if (file) processarArquivoBackup(file);
+}
+
+function processarArquivoBackup(file) {
+  const reader = new FileReader();
+  const isFrdb = file.name.endsWith('.frdb');
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const parsed = JSON.parse(text);
+      if (isFrdb) {
+        // .frdb = array de bytes do SQLite
+        if (!Array.isArray(parsed)) throw new Error('Formato inválido');
+        _backupPayload = { tipo: 'frdb', data: parsed };
+        const nBytes = parsed.length;
+        // Tentar contar registros
+        try {
+          const tmpDB = new SQL.Database(new Uint8Array(parsed));
+          const np = tmpDB.exec('SELECT COUNT(*) FROM partidas')[0]?.values[0][0] || 0;
+          const nt = tmpDB.exec('SELECT COUNT(*) FROM times')[0]?.values[0][0] || 0;
+          document.getElementById('backup-preview-info').innerHTML =
+            `<strong>${nt}</strong> times · <strong>${np}</strong> partidas · ${(nBytes/1024).toFixed(1)} KB`;
+          tmpDB.close();
+        } catch(e2) {
+          document.getElementById('backup-preview-info').textContent = `${(nBytes/1024).toFixed(1)} KB`;
+        }
+      } else {
+        // .json
+        if (!parsed.times || !parsed.partidas) throw new Error('JSON inválido — faltam campos');
+        _backupPayload = { tipo: 'json', data: parsed };
+        document.getElementById('backup-preview-info').innerHTML =
+          `<strong>${parsed.times.length}</strong> times · <strong>${parsed.partidas.length}</strong> partidas` +
+          (parsed.exportado ? ` · exportado em ${parsed.exportado.slice(0,10)}` : '');
+      }
+      document.getElementById('backup-preview').style.display = 'block';
+      document.getElementById('btn-restaurar').style.display = 'inline-block';
+    } catch(e) {
+      toast('Erro ao ler arquivo: ' + e.message, true);
+      _backupPayload = null;
+      document.getElementById('backup-preview').style.display = 'none';
+      document.getElementById('btn-restaurar').style.display = 'none';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function restaurarBanco() {
+  if (!_backupPayload) return;
+  if (!confirm('Substituir o banco atual pelo arquivo selecionado?\n\nEssa ação não pode ser desfeita.')) return;
+  try {
+    if (_backupPayload.tipo === 'frdb') {
+      DB = new SQL.Database(new Uint8Array(_backupPayload.data));
+    } else {
+      // Recriar do JSON
+      DB = new SQL.Database();
+      applySchema();
+      const d = _backupPayload.data;
+      // Config
+      if (d.config_pontuacao) d.config_pontuacao.forEach(c => {
+        exec('INSERT OR REPLACE INTO config_pontuacao (chave,valor,descricao) VALUES (?,?,?)', [c.chave, c.valor, c.descricao||null]);
+      });
+      // Competições
+      if (d.competicoes) d.competicoes.forEach(c => {
+        exec('INSERT OR IGNORE INTO competicoes (id,nome,tipo,multiplicador) VALUES (?,?,?,?)', [c.id, c.nome, c.tipo||null, c.multiplicador||1.0]);
+      });
+      // Times
+      if (d.times) d.times.forEach(t => {
+        exec('INSERT OR IGNORE INTO times (id,nome,nome_curto,pais,estado) VALUES (?,?,?,?,?)', [t.id, t.nome, t.nome_curto||null, t.pais||'Brasil', t.estado||null]);
+      });
+      // Níveis
+      if (d.niveis) d.niveis.forEach(n => {
+        exec('INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel,divisao) VALUES (?,?,?,?)', [n.time_id, n.ano, n.nivel, n.divisao||null]);
+      });
+      // Partidas
+      if (d.partidas) d.partidas.forEach(p => {
+        exec('INSERT OR IGNORE INTO partidas (id,data,ano,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora,competicao_id,mando) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          [p.id,p.data,p.ano,p.time_casa_id,p.time_fora_id,p.gols_casa,p.gols_fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,p.competicao_id||null,p.mando||'normal']);
+      });
+    }
+    saveDB();
+    TIMES = query('SELECT * FROM times ORDER BY nome');
+    COMPS = query('SELECT * FROM competicoes ORDER BY multiplicador DESC');
+    populateSelects();
+    refreshAll();
+    _backupPayload = null;
+    document.getElementById('backup-preview').style.display = 'none';
+    document.getElementById('btn-restaurar').style.display = 'none';
+    document.getElementById('backup-file').value = '';
+    toast('✅ Banco restaurado com sucesso!');
+  } catch(e) { toast('Erro ao restaurar: ' + e.message, true); }
+}
+
+</script>
+
+  <!-- Modal editar time -->
+  <div id="modal-editar-time" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:480px;max-width:95vw">
+      <h3 style="margin:0 0 20px">✏️ Editar Time</h3>
+      <input type="hidden" id="et-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Nome completo</label><input type="text" id="et-nome"></div>
+        <div class="form-group"><label>Sigla</label><input type="text" id="et-curto" maxlength="10"></div>
+        <div class="form-group"><label>País</label>
+          <select id="et-pais"><option>Brasil</option><option>Argentina</option><option>Uruguai</option><option>Colômbia</option><option>Chile</option><option>Equador</option><option>Paraguai</option><option>Peru</option><option>Bolívia</option><option>Venezuela</option><option>Outro</option></select>
+        </div>
+        <div class="form-group"><label>Estado</label><input type="text" id="et-estado" maxlength="5"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-primary" onclick="salvarEditarTime()">💾 Salvar</button>
+        <button class="btn btn-ghost" onclick="fecharModalTime()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal editar níveis -->
+  <div id="modal-editar-niveis" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:540px;max-width:95vw;max-height:85vh;overflow-y:auto">
+      <h3 style="margin:0 0 4px">📅 Níveis por Ano</h3>
+      <p id="en-time-nome" style="margin:0 0 20px;color:var(--muted);font-size:14px"></p>
+      <input type="hidden" id="en-time-id">
+      <table style="width:100%;margin-bottom:20px">
+        <thead><tr><th>Ano</th><th>Nível</th><th>Divisão</th><th></th></tr></thead>
+        <tbody id="en-niveis-tbody"></tbody>
+      </table>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+        <p class="section-title">Adicionar / atualizar ano</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0"><label>Ano</label><input type="number" id="en-novo-ano" style="width:90px"></div>
+          <div class="form-group" style="margin:0"><label>Nível</label>
+            <select id="en-novo-nivel" style="padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">
+              <option value="1">N1 — Série A</option>
+              <option value="2">N2 — Série B</option>
+              <option value="3">N3 — Série C</option>
+              <option value="4">N4 — Série D</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0"><label>Divisão</label><input type="text" id="en-novo-divisao" placeholder="ex: SP" maxlength="10" style="width:80px"></div>
+          <button class="btn btn-primary" style="margin-bottom:0" onclick="adicionarNivelAno()">➕ Adicionar</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" onclick="fecharModalNiveis()">✅ Fechar</button>
+    </div>
+  </div>
+
+</body>
+</html>
