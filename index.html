@@ -452,6 +452,17 @@
       </div>
       <button id="btn-restaurar" class="btn btn-primary" style="display:none" onclick="restaurarBanco()">✅ Restaurar banco</button>
     </div>
+
+    <!-- ZERAR -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-top:20px;border-color:#e74c3c44">
+      <p class="section-title" style="color:#e74c3c">⚠️ Zona de perigo</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Apaga <strong>todos os times, níveis e partidas</strong>.<br>
+        Competições e configurações de pontuação são mantidas.<br>
+        <strong style="color:var(--red)">Faça um backup antes!</strong>
+      </p>
+      <button class="btn" style="background:#e74c3c;color:#fff;border:none" onclick="zerarBanco()">🗑 Zerar times e partidas</button>
+    </div>
   </div>
 
 </main>
@@ -696,8 +707,15 @@ function resolveNivel(timeId, ano) {
   // Times estrangeiros = N1 fixo
   const t = query("SELECT pais FROM times WHERE id=?", [timeId])[0];
   if (t && t.pais && t.pais !== 'Brasil') return 1;
+  // Tenta o ano exato primeiro
   const r = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?", [timeId, ano]);
-  return r.length ? r[0].nivel : null;
+  if (r.length) return r[0].nivel;
+  // Fallback: ano mais próximo disponível (preferindo anterior)
+  const anterior = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano<=? ORDER BY ano DESC LIMIT 1", [timeId, ano]);
+  if (anterior.length) return anterior[0].nivel;
+  const posterior = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano>? ORDER BY ano ASC LIMIT 1", [timeId, ano]);
+  if (posterior.length) return posterior[0].nivel;
+  return null;
 }
 
 function recalcularTodasPartidas() {
@@ -722,11 +740,12 @@ function recalcularManual() {
     FROM partidas p
     LEFT JOIN competicoes c ON c.id=p.competicao_id
   `);
-  let atualizadas = 0;
+  let atualizadas = 0, semNivel = 0;
   partidas.forEach(p => {
-    // Relê nível de cada time no ano da partida
+    // Relê nível de cada time no ano da partida (com fallback pro ano mais próximo)
     const nc = resolveNivel(p.time_casa_id, p.ano);
     const nf = resolveNivel(p.time_fora_id, p.ano);
+    if (nc === null || nf === null) semNivel++;
     const r = calcPontuacao(p.gols_casa, p.gols_fora, nc, nf, p.mando||'normal', p.mc, cfg);
     exec("UPDATE partidas SET nivel_casa=?, nivel_fora=?, pts_casa=?, pts_fora=? WHERE id=?",
       [nc, nf, r.ptsCasa, r.ptsFora, p.id]);
@@ -734,7 +753,8 @@ function recalcularManual() {
   });
   saveDB();
   refreshAll();
-  toast(`✅ ${atualizadas} partidas recalculadas com os níveis atuais!`);
+  const aviso = semNivel > 0 ? `\n⚠️ ${semNivel} partidas com times sem nível cadastrado (diff=0 assumido).` : '';
+  toast(`✅ ${atualizadas} partidas recalculadas!${aviso}`);
 }
 
 // ─────────────────────────────────────────
@@ -1566,6 +1586,24 @@ function toggleForm(id){const el=document.getElementById(id);el.style.display=el
 function toast(msg,error=false){const t=document.getElementById('toast');t.textContent=(error?'❌ ':'✅ ')+msg;t.className='toast show'+(error?' error':'');setTimeout(()=>t.className='toast',3500);}
 
 initSQLite().catch(e=>{document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e05252;font-family:monospace">Erro: ${e.message}</div>`;});
+
+// ─────────────────────────────────────────
+// ZERAR BANCO
+// ─────────────────────────────────────────
+function zerarBanco() {
+  const nPartidas = query('SELECT COUNT(*) AS n FROM partidas')[0]?.n || 0;
+  const nTimes = query('SELECT COUNT(*) AS n FROM times')[0]?.n || 0;
+  if (!confirm(`Zerar o banco de dados?\n\n${nTimes} times e ${nPartidas} partidas serão excluídos permanentemente.\n\nCompetições e configurações serão mantidas.`)) return;
+  // Segunda confirmação
+  const conf = prompt('Digite ZERAR para confirmar:');
+  if (conf !== 'ZERAR') { toast('Operação cancelada.'); return; }
+  exec('DELETE FROM partidas');
+  exec('DELETE FROM times_nivel');
+  exec('DELETE FROM times');
+  saveDB();
+  refreshAll();
+  toast('✅ Banco zerado. Times e partidas removidos.');
+}
 
 // ─────────────────────────────────────────
 // BACKUP — EXPORTAR / IMPORTAR
