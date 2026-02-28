@@ -243,6 +243,7 @@
     <div class="page-header">
       <div><h2>Configuração de Pontuação</h2><p>Ajuste pesos e multiplicadores do sistema</p></div>
       <button class="btn btn-primary" onclick="salvarConfig()">💾 Salvar e Recalcular</button>
+      <button class="btn btn-ghost" style="margin-left:8px" onclick="recalcularManual()" title="Relê os níveis atuais de cada time e recalcula todos os pontos">🔄 Recalcular tudo pelos níveis atuais</button>
     </div>
     <p class="section-title">Vitória</p>
     <div class="config-grid" id="config-vitoria"></div>
@@ -560,6 +561,8 @@ async function initSQLite() {
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_neutro' AND valor!=1.0");
         DB.run("UPDATE competicoes SET multiplicador=1.0 WHERE multiplicador!=1.0 AND tipo!='amistoso'");
         DB.run("UPDATE competicoes SET multiplicador=0.5 WHERE tipo='amistoso'");
+        // Limpar estados falsos criados pela importação (A, B, C, D = séries nacionais, não estados)
+        DB.run("UPDATE times SET estado=NULL WHERE estado IN ('A','B','C','D') AND (estado IS NOT NULL)");
         // Recalcular pts de todas as partidas com os novos parâmetros
         const partidas = DB.exec("SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, COALESCE(c.multiplicador,1.0) AS mc FROM partidas p LEFT JOIN competicoes c ON c.id=p.competicao_id");
         if (partidas.length) {
@@ -705,6 +708,33 @@ function recalcularTodasPartidas() {
     exec("UPDATE partidas SET pts_casa=?, pts_fora=? WHERE id=?", [r.ptsCasa, r.ptsFora, p.id]);
   });
   return partidas.length;
+}
+
+function recalcularManual() {
+  if (!confirm('Recalcular os pontos de TODAS as partidas?\n\nO sistema irá reler o nível de cada time no ano da partida e recalcular os pontos com a configuração atual.')) return;
+  const cfg = getCfg();
+  // Busca partidas com nível resolvido pelo ano
+  const partidas = query(`
+    SELECT p.id, p.ano, p.gols_casa, p.gols_fora,
+           p.time_casa_id, p.time_fora_id,
+           p.mando,
+           COALESCE(c.multiplicador,1.0) AS mc
+    FROM partidas p
+    LEFT JOIN competicoes c ON c.id=p.competicao_id
+  `);
+  let atualizadas = 0;
+  partidas.forEach(p => {
+    // Relê nível de cada time no ano da partida
+    const nc = resolveNivel(p.time_casa_id, p.ano);
+    const nf = resolveNivel(p.time_fora_id, p.ano);
+    const r = calcPontuacao(p.gols_casa, p.gols_fora, nc, nf, p.mando||'normal', p.mc, cfg);
+    exec("UPDATE partidas SET nivel_casa=?, nivel_fora=?, pts_casa=?, pts_fora=? WHERE id=?",
+      [nc, nf, r.ptsCasa, r.ptsFora, p.id]);
+    atualizadas++;
+  });
+  saveDB();
+  refreshAll();
+  toast(`✅ ${atualizadas} partidas recalculadas com os níveis atuais!`);
 }
 
 // ─────────────────────────────────────────
@@ -1303,11 +1333,13 @@ function previewImport() {
   document.getElementById('imp-preview').style.display='block';
 }
 
-function getOrCreateTime(nome, uf, nivel, ano) {
+function getOrCreateTime(nome, nivel, ano) {
+  // "uf" do arquivo = identificador da competição, NÃO estado do time
   const n = nome.trim();
   let row = query("SELECT id FROM times WHERE nome=?",[n])[0];
   if (!row) {
-    exec("INSERT INTO times (nome,pais,estado) VALUES (?,?,?)",[n,'Brasil',uf||null]);
+    // Cria sem estado — usuário define depois na aba Times
+    exec("INSERT INTO times (nome,pais,estado) VALUES (?,?,?)",[n,'Brasil',null]);
     row = query("SELECT id FROM times WHERE nome=?",[n])[0];
   }
   if (!row) return null;
@@ -1333,8 +1365,8 @@ function executarImport() {
       let compId = compSel==='auto'?(UF_COMP[p.uf]||null):compSel?parseInt(compSel):null;
       let mc = 1.0;
       if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
-      const casaId = getOrCreateTime(p.casa,p.uf,nivelDefault,ano);
-      const foraId = getOrCreateTime(p.fora,p.uf,nivelDefault,ano);
+      const casaId = getOrCreateTime(p.casa,nivelDefault,ano);
+      const foraId = getOrCreateTime(p.fora,nivelDefault,ano);
       if (!casaId||!foraId) throw new Error('time null');
       const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
       const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
