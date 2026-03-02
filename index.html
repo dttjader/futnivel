@@ -550,7 +550,7 @@ function calcPontuacao(golsCasa, golsFora, nivelCasa, nivelFora, mando='normal',
 let DB = null, SQL = null;
 let TIMES = [], COMPS = [];
 
-const DB_SEED = {"times":[],"times_nivel":[],"competicoes":[{"id":1,"nome":"Brasileirão Série A","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":2,"nome":"Brasileirão Série B","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":3,"nome":"Brasileirão Série C","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":4,"nome":"Brasileirão Série D","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":5,"nome":"Copa do Brasil","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":6,"nome":"Copa Libertadores","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":7,"nome":"Copa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":8,"nome":"Recopa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":9,"nome":"Campeonato Paulista","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":10,"nome":"Campeonato Carioca","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":11,"nome":"Campeonato Mineiro","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":12,"nome":"Campeonato Gaúcho","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":13,"nome":"Campeonato Sul-Rio-Grandense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":14,"nome":"Campeonato Paranaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":15,"nome":"Campeonato Baiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":16,"nome":"Campeonato Pernambucano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":17,"nome":"Campeonato Cearense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":18,"nome":"Campeonato Goiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":19,"nome":"Campeonato Alagoano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":20,"nome":"Campeonato Amazonense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":21,"nome":"Campeonato Amapaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":22,"nome":"Campeonato Brasiliense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":23,"nome":"Campeonato Capixaba","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":24,"nome":"Campeonato Maranhense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":25,"nome":"Campeonato Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":26,"nome":"Campeonato Sul-Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":27,"nome":"Campeonato Paraense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":28,"nome":"Campeonato Paraibano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":29,"nome":"Campeonato Piauiense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":30,"nome":"Campeonato Potiguar","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":31,"nome":"Campeonato Rondoniense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":32,"nome":"Campeonato Roraimense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":33,"nome":"Campeonato Sergipano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":34,"nome":"Campeonato Tocantinense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":35,"nome":"Campeonato Acreano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":36,"nome":"Amistoso","tipo":"amistoso","pais":null,"multiplicador":0.5}],"partidas":[],"config_pontuacao":[{"chave":"pts_vitoria_base","valor":100.0,"descricao":"Pontos base por vitória (mesmo nível)"},{"chave":"pts_vitoria_bonus_d1","valor":50.0,"descricao":"Bônus vitória com 1 nível de desvantagem (+50)"},{"chave":"pts_vitoria_bonus_d2","valor":125.0,"descricao":"Bônus vitória com 2 níveis de desvantagem (+125)"},{"chave":"pts_vitoria_bonus_d3","valor":250.0,"descricao":"Bônus vitória com 3 níveis de desvantagem (+250)"},{"chave":"pts_vitoria_fator_d1","valor":0.5,"descricao":"Fator quando vencedor tem 1 nível de vantagem"},{"chave":"pts_vitoria_fator_d2","valor":0.25,"descricao":"Fator quando vencedor tem 2 níveis de vantagem"},{"chave":"pts_vitoria_fator_d3","valor":0.0,"descricao":"Fator quando vencedor tem 3 níveis de vantagem"},{"chave":"pts_derrota_pen_d1","valor":-50.0,"descricao":"Penalidade derrota com 1 nível de desvantagem"},{"chave":"pts_derrota_pen_d2","valor":-125.0,"descricao":"Penalidade derrota com 2 níveis de desvantagem"},{"chave":"pts_derrota_pen_d3","valor":-200.0,"descricao":"Penalidade derrota com 3 níveis de desvantagem"},{"chave":"pts_empate_base","valor":33.0,"descricao":"Pontos base por empate (mesmo nível, ambos)"},{"chave":"pts_empate_bonus_fator","valor":0.3333333333,"descricao":"Fator bônus empate por nível (1/3)"},{"chave":"pts_empate_pen_nivel","valor":-11.0,"descricao":"Penalidade de empate por nível (time mais forte)"},{"chave":"mult_mando_casa","valor":1.0,"descricao":"Multiplicador jogando em casa"},{"chave":"mult_mando_fora","valor":1.2,"descricao":"Multiplicador jogando fora de casa (+20%)"},{"chave":"mult_mando_neutro","valor":1.0,"descricao":"Multiplicador campo neutro"}]};
+const DB_SEED = {"times":[],"times_nivel":[],"competicoes":[{"id":1,"nome":"Brasileirão Série A","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":2,"nome":"Brasileirão Série B","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":3,"nome":"Brasileirão Série C","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":4,"nome":"Brasileirão Série D","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":5,"nome":"Copa do Brasil","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":6,"nome":"Copa Libertadores","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":7,"nome":"Copa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":8,"nome":"Recopa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":9,"nome":"Campeonato Paulista","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":10,"nome":"Campeonato Carioca","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":11,"nome":"Campeonato Mineiro","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":12,"nome":"Campeonato Gaúcho","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":13,"nome":"Campeonato Sul-Rio-Grandense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":14,"nome":"Campeonato Paranaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":15,"nome":"Campeonato Baiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":16,"nome":"Campeonato Pernambucano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":17,"nome":"Campeonato Cearense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":18,"nome":"Campeonato Goiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":19,"nome":"Campeonato Alagoano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":20,"nome":"Campeonato Amazonense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":21,"nome":"Campeonato Amapaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":22,"nome":"Campeonato Brasiliense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":23,"nome":"Campeonato Capixaba","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":24,"nome":"Campeonato Maranhense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":25,"nome":"Campeonato Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":26,"nome":"Campeonato Sul-Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":27,"nome":"Campeonato Paraense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":28,"nome":"Campeonato Paraibano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":29,"nome":"Campeonato Piauiense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":30,"nome":"Campeonato Potiguar","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":31,"nome":"Campeonato Rondoniense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":32,"nome":"Campeonato Roraimense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":33,"nome":"Campeonato Sergipano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":34,"nome":"Campeonato Tocantinense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":35,"nome":"Campeonato Acreano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":36,"nome":"Amistoso","tipo":"amistoso","pais":null,"multiplicador":0.5},{"id":37,"nome":"Mundial de Clubes","tipo":"mundial","multiplicador":1.0},{"id":38,"nome":"Campeonato Catarinense","tipo":"estadual","multiplicador":1.0}],"partidas":[],"config_pontuacao":[{"chave":"pts_vitoria_base","valor":100.0,"descricao":"Pontos base por vitória (mesmo nível)"},{"chave":"pts_vitoria_bonus_d1","valor":50.0,"descricao":"Bônus vitória com 1 nível de desvantagem (+50)"},{"chave":"pts_vitoria_bonus_d2","valor":125.0,"descricao":"Bônus vitória com 2 níveis de desvantagem (+125)"},{"chave":"pts_vitoria_bonus_d3","valor":250.0,"descricao":"Bônus vitória com 3 níveis de desvantagem (+250)"},{"chave":"pts_vitoria_fator_d1","valor":0.5,"descricao":"Fator quando vencedor tem 1 nível de vantagem"},{"chave":"pts_vitoria_fator_d2","valor":0.25,"descricao":"Fator quando vencedor tem 2 níveis de vantagem"},{"chave":"pts_vitoria_fator_d3","valor":0.0,"descricao":"Fator quando vencedor tem 3 níveis de vantagem"},{"chave":"pts_derrota_pen_d1","valor":-50.0,"descricao":"Penalidade derrota com 1 nível de desvantagem"},{"chave":"pts_derrota_pen_d2","valor":-125.0,"descricao":"Penalidade derrota com 2 níveis de desvantagem"},{"chave":"pts_derrota_pen_d3","valor":-200.0,"descricao":"Penalidade derrota com 3 níveis de desvantagem"},{"chave":"pts_empate_base","valor":33.0,"descricao":"Pontos base por empate (mesmo nível, ambos)"},{"chave":"pts_empate_bonus_fator","valor":0.3333333333,"descricao":"Fator bônus empate por nível (1/3)"},{"chave":"pts_empate_pen_nivel","valor":-11.0,"descricao":"Penalidade de empate por nível (time mais forte)"},{"chave":"mult_mando_casa","valor":1.0,"descricao":"Multiplicador jogando em casa"},{"chave":"mult_mando_fora","valor":1.2,"descricao":"Multiplicador jogando fora de casa (+20%)"},{"chave":"mult_mando_neutro","valor":1.0,"descricao":"Multiplicador campo neutro"}]};
 
 async function initSQLite() {
   const script = document.createElement('script');
@@ -575,6 +575,22 @@ async function initSQLite() {
         DB.run("UPDATE competicoes SET multiplicador=0.5 WHERE tipo='amistoso'");
         // Limpar estados falsos criados pela importação (A, B, C, D = séries nacionais, não estados)
         DB.run("UPDATE times SET estado=NULL WHERE estado IN ('A','B','C','D') AND (estado IS NOT NULL)");
+        // Garantir que todas as competições do seed existam no banco (ex: Mundial, Catarinense)
+        DB_SEED.competicoes.forEach(sc => {
+          DB.run('INSERT OR IGNORE INTO competicoes (id,nome,tipo,multiplicador) VALUES (?,?,?,?)',
+            [sc.id, sc.nome, sc.tipo||null, sc.multiplicador||1.0]);
+        });
+        // Garantir competições com IDs fixos (bancos antigos podem não ter todas)
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (1,'Brasileirão Série A','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (2,'Brasileirão Série B','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (3,'Brasileirão Série C','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (4,'Brasileirão Série D','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (5,'Copa do Brasil','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (6,'Copa Libertadores','continental','CONMEBOL',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (7,'Copa Sul-Americana','continental','CONMEBOL',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (8,'Recopa Sul-Americana','continental','CONMEBOL',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (36,'Amistoso','amistoso',null,0.5)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (37,'Mundial de Clubes','mundial','FIFA',1.0)");
         // Recalcular pts de todas as partidas com os novos parâmetros
         const partidas = DB.exec("SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, COALESCE(c.multiplicador,1.0) AS mc FROM partidas p LEFT JOIN competicoes c ON c.id=p.competicao_id");
         if (partidas.length) {
@@ -673,25 +689,44 @@ function applySchema() {
       ('mult_mando_fora',1.20,'Multiplicador jogando fora de casa (+20%)'),
       ('mult_mando_neutro',1.0,'Multiplicador campo neutro');
     UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa' AND valor!=1.0;
-    INSERT OR IGNORE INTO competicoes (nome, tipo, pais, multiplicador) VALUES
-      ('Brasileirão Série A','nacional','Brasil',1.2),('Brasileirão Série B','nacional','Brasil',1.0),
-      ('Brasileirão Série C','nacional','Brasil',0.8),('Brasileirão Série D','nacional','Brasil',0.6),
-      ('Copa do Brasil','nacional','Brasil',1.1),('Copa Libertadores','continental','CONMEBOL',1.5),
-      ('Copa Sul-Americana','continental','CONMEBOL',1.3),('Recopa Sul-Americana','continental','CONMEBOL',1.2),
-      ('Campeonato Paulista','nacional','Brasil',0.7),('Campeonato Carioca','nacional','Brasil',0.7),
-      ('Campeonato Mineiro','nacional','Brasil',0.7),('Campeonato Gaúcho','nacional','Brasil',0.7),
-      ('Campeonato Sul-Rio-Grandense','nacional','Brasil',0.7),('Campeonato Paranaense','nacional','Brasil',0.7),
-      ('Campeonato Baiano','nacional','Brasil',0.7),('Campeonato Pernambucano','nacional','Brasil',0.7),
-      ('Campeonato Cearense','nacional','Brasil',0.7),('Campeonato Goiano','nacional','Brasil',0.7),
-      ('Campeonato Alagoano','nacional','Brasil',0.7),('Campeonato Amazonense','nacional','Brasil',0.7),
-      ('Campeonato Amapaense','nacional','Brasil',0.7),('Campeonato Brasiliense','nacional','Brasil',0.7),
-      ('Campeonato Capixaba','nacional','Brasil',0.7),('Campeonato Maranhense','nacional','Brasil',0.7),
-      ('Campeonato Mato-Grossense','nacional','Brasil',0.7),('Campeonato Sul-Mato-Grossense','nacional','Brasil',0.7),
-      ('Campeonato Paraense','nacional','Brasil',0.7),('Campeonato Paraibano','nacional','Brasil',0.7),
-      ('Campeonato Piauiense','nacional','Brasil',0.7),('Campeonato Potiguar','nacional','Brasil',0.7),
-      ('Campeonato Rondoniense','nacional','Brasil',0.7),('Campeonato Roraimense','nacional','Brasil',0.7),
-      ('Campeonato Sergipano','nacional','Brasil',0.7),('Campeonato Tocantinense','nacional','Brasil',0.7),
-      ('Campeonato Acreano','nacional','Brasil',0.7),('Amistoso','amistoso',null,0.5);
+    INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES
+      (1,'Brasileirão Série A','nacional','Brasil',1.0),
+      (2,'Brasileirão Série B','nacional','Brasil',1.0),
+      (3,'Brasileirão Série C','nacional','Brasil',1.0),
+      (4,'Brasileirão Série D','nacional','Brasil',1.0),
+      (5,'Copa do Brasil','nacional','Brasil',1.0),
+      (6,'Copa Libertadores','continental','CONMEBOL',1.0),
+      (7,'Copa Sul-Americana','continental','CONMEBOL',1.0),
+      (8,'Recopa Sul-Americana','continental','CONMEBOL',1.0),
+      (9,'Campeonato Paulista','estadual','Brasil',1.0),
+      (10,'Campeonato Carioca','estadual','Brasil',1.0),
+      (11,'Campeonato Mineiro','estadual','Brasil',1.0),
+      (12,'Campeonato Gaúcho','estadual','Brasil',1.0),
+      (13,'Campeonato Sul-Rio-Grandense','estadual','Brasil',1.0),
+      (14,'Campeonato Paranaense','estadual','Brasil',1.0),
+      (15,'Campeonato Baiano','estadual','Brasil',1.0),
+      (16,'Campeonato Pernambucano','estadual','Brasil',1.0),
+      (17,'Campeonato Cearense','estadual','Brasil',1.0),
+      (18,'Campeonato Goiano','estadual','Brasil',1.0),
+      (19,'Campeonato Alagoano','estadual','Brasil',1.0),
+      (20,'Campeonato Amazonense','estadual','Brasil',1.0),
+      (21,'Campeonato Amapaense','estadual','Brasil',1.0),
+      (22,'Campeonato Brasiliense','estadual','Brasil',1.0),
+      (23,'Campeonato Capixaba','estadual','Brasil',1.0),
+      (24,'Campeonato Maranhense','estadual','Brasil',1.0),
+      (25,'Campeonato Mato-Grossense','estadual','Brasil',1.0),
+      (26,'Campeonato Sul-Mato-Grossense','estadual','Brasil',1.0),
+      (27,'Campeonato Paraense','estadual','Brasil',1.0),
+      (28,'Campeonato Paraibano','estadual','Brasil',1.0),
+      (29,'Campeonato Piauiense','estadual','Brasil',1.0),
+      (30,'Campeonato Potiguar','estadual','Brasil',1.0),
+      (31,'Campeonato Rondoniense','estadual','Brasil',1.0),
+      (32,'Campeonato Roraimense','estadual','Brasil',1.0),
+      (33,'Campeonato Sergipano','estadual','Brasil',1.0),
+      (34,'Campeonato Tocantinense','estadual','Brasil',1.0),
+      (35,'Campeonato Acreano','estadual','Brasil',1.0),
+      (36,'Amistoso','amistoso',null,0.5),
+      (37,'Mundial de Clubes','mundial','FIFA',1.0);
   `);
 }
 
@@ -1304,7 +1339,53 @@ function atualizarRefTable() {
 // IMPORTAR RESULTADOS
 // ─────────────────────────────────────────
 const SERIE_NIVEL = {'A':1,'B':2,'C':3,'D':4};
-const UF_COMP = {"AC": 35, "AL": 19, "AM": 20, "AP": 21, "BA": 15, "CE": 17, "DF": 22, "ES": 23, "GO": 18, "MA": 24, "MG": 11, "MS": 26, "MT": 25, "PA": 27, "PB": 28, "PE": 16, "PI": 29, "PR": 14, "RJ": 10, "RN": 30, "RO": 31, "RR": 32, "RS": 13, "SC": 13, "SE": 33, "SP": 9, "TO": 34};
+
+// Mapa direto: código → id fixo da competição no banco
+// IDs definidos no seed: 1=BrA, 2=BrB, 3=BrC, 4=BrD, 5=CopaBr, 6=Lib, 7=SulAm, 8=Recopa
+// 9=SP, 10=RJ, 11=MG, 12=RS, 13=SC, 14=PR, 15=BA, 16=PE, 17=CE, 18=GO, 19=AL
+// 20=AM, 21=AP, 22=DF, 23=ES, 24=MA, 25=MT, 26=MS, 27=PA, 28=PB, 29=PI
+// 30=RN, 31=RO, 32=RR, 33=SE, 34=TO, 35=AC, 36=Amistoso
+const CODIGO_COMP_ID = {
+  // Séries nacionais
+  'A':1, 'B':2, 'C':3, 'D':4,
+  // Copa do Brasil
+  'CB':5,
+  // Continentais
+  'L':6, 'LIB':6,
+  'S':7, 'SUD':7,
+  'R':8, 'RCP':8,
+  'M':37, 'MUN':37,
+  // Amistoso
+  'AMI':36, 'AMISTOSO':36,
+  // Estaduais por UF
+  'SP':9,'RJ':10,'MG':11,'RS':12,'SC':38,'PR':14,
+  'BA':15,'PE':16,'CE':17,'GO':18,'AL':19,'AM':20,
+  'AP':21,'DF':22,'ES':23,'MA':24,'MT':25,'MS':26,
+  'PA':27,'PB':28,'PI':29,'RN':30,'RO':31,'RR':32,
+  'SE':33,'TO':34,'AC':35
+};
+
+function resolveCompId(codigo) {
+  if (!codigo) return null;
+  const c = codigo.toUpperCase().trim();
+  const id = CODIGO_COMP_ID[c];
+  if (id === undefined) return null; // código totalmente desconhecido
+  // Verifica se o id existe no banco (pode ser banco antigo sem Mundial etc.)
+  // Se não existe, tenta inserir automaticamente a partir do seed
+  if (id !== null) {
+    const exists = query('SELECT id FROM competicoes WHERE id=?', [id]);
+    if (!exists.length) {
+      // Busca no seed embutido e insere
+      const seedComp = DB_SEED.competicoes.find(sc => sc.id === id);
+      if (seedComp) {
+        exec('INSERT OR IGNORE INTO competicoes (id,nome,tipo,multiplicador) VALUES (?,?,?,?)',
+          [seedComp.id, seedComp.nome, seedComp.tipo||null, seedComp.multiplicador||1.0]);
+      }
+    }
+  }
+  return id;
+}
+function invalidarCompCache() { _compCache = null; }
 
 function loadFile(input, targetId) {
   const file = input.files[0]; if (!file) return;
@@ -1384,7 +1465,7 @@ function executarImport() {
   let ok=0, fail=0;
   partidas.forEach(p => {
     try {
-      let compId = compSel==='auto'?(UF_COMP[p.uf]||null):compSel?parseInt(compSel):null;
+      let compId = compSel==='auto'?resolveCompId(p.uf):compSel?parseInt(compSel):null;
       let mc = 1.0;
       if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
       // Se UF é A/B/C/D → deriva nível da série; senão usa nivelDefault
