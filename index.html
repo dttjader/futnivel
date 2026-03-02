@@ -108,6 +108,7 @@
     <a onclick="showPage('config')" data-page="config"><span class="icon">⚙️</span><span>Pontuação</span></a>
     <a onclick="showPage('validador')" data-page="validador"><span class="icon">🔬</span><span>Validador</span></a>
     <a onclick="showPage('importar')" data-page="importar"><span class="icon">📥</span><span>Importar</span></a>
+    <a onclick="showPage('pendentes')" data-page="pendentes"><span class="icon">⚠️</span><span id="nav-pendentes-label">Pendentes</span></a>
     <a onclick="showPage('backup')" data-page="backup"><span class="icon">💾</span><span>Backup</span></a>
     <a onclick="showPage('auditoria')" data-page="auditoria"><span class="icon">🔍</span><span>Auditoria</span></a>
   </nav>
@@ -378,9 +379,23 @@
         <label>Ou cole o conteúdo aqui</label>
         <textarea id="imp-texto" rows="8" oninput="previewImport()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-family:monospace;font-size:12px;resize:vertical;outline:none" placeholder="BA&#9;Bahia&#9;2-1&#9;Vitória&#10;BA&#9;Vitória&#9;0-0&#9;Sport"></textarea>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="executarImport()">⚡ Importar Partidas</button>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="imp-ignorar-dup" checked> Ignorar duplicatas do arquivo
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="imp-ignorar-existentes" checked> Ignorar partidas já existentes no banco
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <button id="btn-importar" class="btn btn-primary" onclick="executarImport()">⚡ Importar Partidas</button>
         <span id="imp-status" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <div id="imp-progresso" style="display:none">
+        <div style="background:var(--surface2);border-radius:999px;height:8px;overflow:hidden;margin-bottom:6px">
+          <div id="imp-barra" style="height:100%;width:0%;background:var(--green);transition:width 0.2s;border-radius:999px"></div>
+        </div>
+        <div id="imp-progresso-txt" style="font-size:12px;color:var(--muted);text-align:center"></div>
       </div>
       <div id="imp-preview" style="display:none;margin-top:16px">
         <p class="section-title" style="margin-bottom:8px">Pré-visualização</p>
@@ -463,6 +478,42 @@
         <strong style="color:var(--red)">Faça um backup antes!</strong>
       </p>
       <button class="btn" style="background:#e74c3c;color:#fff;border:none" onclick="zerarBanco()">🗑 Zerar times e partidas</button>
+    </div>
+  </div>
+
+
+  <!-- PENDENTES -->
+  <div class="page" id="page-pendentes">
+    <div class="page-header">
+      <div><h2>Partidas Pendentes</h2><p>Duplicatas e registros pulados aguardando revisão</p></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="limparPendentes()">🗑 Limpar lista</button>
+        <button class="btn btn-primary" onclick="importarSelecionados()">✅ Importar selecionados</button>
+      </div>
+    </div>
+    <div id="pendentes-vazio" style="display:none" class="empty-state"><div class="icon">✅</div><p>Nenhuma partida pendente.</p></div>
+    <div id="pendentes-conteudo">
+      <!-- Seção: Duplicatas no arquivo -->
+      <div id="sec-dup-arquivo" style="display:none;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <h3 style="margin:0;font-size:15px">🔁 Duplicatas no arquivo <span id="cnt-dup-arquivo" style="background:var(--surface2);padding:2px 8px;border-radius:999px;font-size:13px"></span></h3>
+          <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="selecionarTodos('dup-arquivo', true)">Selecionar todos</button>
+          <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="selecionarTodos('dup-arquivo', false)">Desmarcar todos</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Linhas com exatamente o mesmo conteúdo que já apareceu antes no arquivo. Pode ser jogo de ida/volta com mesmo placar — selecione os que devem ser importados.</p>
+        <div class="table-wrap" id="tabela-dup-arquivo"></div>
+      </div>
+
+      <!-- Seção: Pulados por já existirem -->
+      <div id="sec-dup-banco" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <h3 style="margin:0;font-size:15px">🏦 Pulados por já existirem no banco <span id="cnt-dup-banco" style="background:var(--surface2);padding:2px 8px;border-radius:999px;font-size:13px"></span></h3>
+          <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="selecionarTodos('dup-banco', true)">Selecionar todos</button>
+          <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="selecionarTodos('dup-banco', false)">Desmarcar todos</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Partidas puladas pois já existe um jogo idêntico (mesmos times, mesmo placar, mesmo ano) em outra competição. Selecione os que realmente são jogos distintos.</p>
+        <div class="table-wrap" id="tabela-dup-banco"></div>
+      </div>
     </div>
   </div>
 
@@ -735,7 +786,7 @@ function query(sql, params=[]) {
   catch(e){ console.error(e,sql); return []; }
 }
 function exec(sql, params=[]) {
-  try { const s=DB.prepare(sql); s.run(params); s.free(); saveDB(); }
+  try { const s=DB.prepare(sql); s.run(params); s.free(); }
   catch(e){ toast('Erro: '+e.message,true); throw e; }
 }
 
@@ -1155,7 +1206,7 @@ function salvarTime() {
     exec("INSERT OR IGNORE INTO times (nome,nome_curto,pais,estado) VALUES (?,?,?,?)",[nome,curto,pais,estado]);
     const row=query("SELECT id FROM times WHERE nome=?",[nome])[0];
     exec("INSERT INTO times_nivel (time_id,ano,nivel,divisao) VALUES (?,?,?,?) ON CONFLICT(time_id,ano) DO UPDATE SET nivel=excluded.nivel,divisao=excluded.divisao",[row.id,ano,nivel,divisao]);
-    toast(`Time "${nome}" salvo!`); toggleForm('form-time'); refreshAll();
+    saveDB(); toast(`Time "${nome}" salvo!`); toggleForm('form-time'); refreshAll();
   } catch(e){}
 }
 
@@ -1208,7 +1259,7 @@ function salvarConfig() {
     if(el) exec("UPDATE config_pontuacao SET valor=? WHERE chave=?",[parseFloat(el.value),c.chave]);
   });
   const n=recalcularTodasPartidas();
-  toast(`Config salva! ${n} partidas recalculadas.`);
+  saveDB(); toast(`Config salva! ${n} partidas recalculadas.`);
   carregarRanking(); carregarPartidas(); carregarDashboard();
 }
 
@@ -1409,30 +1460,42 @@ function handleDrop(event, targetId) {
 }
 
 function parseTSVPartidas(texto) {
-  const linhas = texto.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+  // Remove BOM se presente
+  const clean = texto.replace(/^\uFEFF/, '');
+  const linhas = clean.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
   const partidas = [], erros = [];
+  const visto = {}; // chave → índice da primeira ocorrência
   linhas.forEach((linha,i) => {
     const cols = linha.split('\t');
     if (cols.length < 4) { erros.push(`Linha ${i+1}: menos de 4 colunas`); return; }
     const [uf,casa,placar,fora] = cols.map(c=>c.trim());
     const m = placar.match(/^(\d+)[-x×](\d+)$/i);
     if (!m) { erros.push(`Linha ${i+1}: placar inválido "${placar}"`); return; }
-    partidas.push({uf:uf.toUpperCase(),casa,gols_casa:parseInt(m[1]),gols_fora:parseInt(m[2]),fora});
+    const chave = `${uf.toUpperCase()}|${casa}|${m[1]}-${m[2]}|${fora}`;
+    const isDupArquivo = chave in visto;
+    if (!isDupArquivo) visto[chave] = i;
+    partidas.push({uf:uf.toUpperCase(),casa,gols_casa:parseInt(m[1]),gols_fora:parseInt(m[2]),fora,dupArquivo:isDupArquivo});
   });
-  return {partidas,erros};
+  const nDup = partidas.filter(p=>p.dupArquivo).length;
+  return {partidas, erros, nDup};
 }
 
 function previewImport() {
   const texto = document.getElementById('imp-texto').value;
   if (!texto.trim()) { document.getElementById('imp-preview').style.display='none'; return; }
-  const {partidas,erros} = parseTSVPartidas(texto);
-  document.getElementById('imp-status').textContent = `${partidas.length} partidas encontradas${erros.length?' · '+erros.length+' erros':''}`;
+  const {partidas, erros, nDup} = parseTSVPartidas(texto);
+  let statusTxt = `${partidas.length} partidas encontradas`;
+  if (erros.length) statusTxt += ` · ${erros.length} erros de formato`;
+  if (nDup) statusTxt += ` · ⚠️ ${nDup} duplicatas no arquivo`;
+  document.getElementById('imp-status').textContent = statusTxt;
   if (!partidas.length) { document.getElementById('imp-preview').style.display='none'; return; }
   const rows = partidas.slice(0,20).map(p => {
     const res = p.gols_casa>p.gols_fora?'🏠':p.gols_casa<p.gols_fora?'🚌':'🤝';
-    return `<tr><td style="color:var(--muted);font-size:12px">${p.uf}</td><td style="text-align:right;font-weight:600">${p.casa}</td><td class="score-cell">${p.gols_casa}×${p.gols_fora}</td><td style="font-weight:600">${p.fora}</td><td style="text-align:center">${res}</td></tr>`;
+    const dupStyle = p.dupArquivo ? 'background:rgba(231,76,60,0.12);' : '';
+    const dupFlag = p.dupArquivo ? '<span title="Duplicata no arquivo" style="color:#e74c3c;font-size:11px">dup</span>' : '';
+    return `<tr style="${dupStyle}"><td style="color:var(--muted);font-size:12px">${p.uf}</td><td style="text-align:right;font-weight:600">${p.casa}</td><td class="score-cell">${p.gols_casa}×${p.gols_fora}</td><td style="font-weight:600">${p.fora}</td><td style="text-align:center">${res}</td><td>${dupFlag}</td></tr>`;
   }).join('');
-  document.getElementById('imp-preview-table').innerHTML = `<table><thead><tr><th>UF</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th>Res</th></tr></thead><tbody>${rows}${partidas.length>20?`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:10px">...e mais ${partidas.length-20} partidas</td></tr>`:''}</tbody></table>`;
+  document.getElementById('imp-preview-table').innerHTML = `<table><thead><tr><th>UF</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th>Res</th><th></th></tr></thead><tbody>${rows}${partidas.length>20?`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:10px">...e mais ${partidas.length-20} partidas${nDup?` (duplicatas marcadas em vermelho)`:''}</td></tr>`:''}</tbody></table>`;
   document.getElementById('imp-preview').style.display='block';
 }
 
@@ -1455,36 +1518,98 @@ function getOrCreateTime(nome, nivel, ano) {
 function executarImport() {
   const texto = document.getElementById('imp-texto').value;
   if (!texto.trim()) return toast('Nenhum conteúdo para importar.',true);
-  const {partidas,erros} = parseTSVPartidas(texto);
+  const {partidas, erros, nDup} = parseTSVPartidas(texto);
   if (!partidas.length) return toast('Nenhuma partida válida.',true);
   const ano = parseInt(document.getElementById('imp-ano').value)||2011;
   const compSel = document.getElementById('imp-comp').value;
   const nivelDefault = parseInt(document.getElementById('imp-nivel-default').value)||4;
   const mando = document.getElementById('imp-mando').value;
   const cfg = getCfg();
-  let ok=0, fail=0;
-  partidas.forEach(p => {
-    try {
-      let compId = compSel==='auto'?resolveCompId(p.uf):compSel?parseInt(compSel):null;
-      let mc = 1.0;
-      if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
-      // Se UF é A/B/C/D → deriva nível da série; senão usa nivelDefault
-      const nivelPartida = SERIE_NIVEL[p.uf] || nivelDefault;
-      const casaId = getOrCreateTime(p.casa, nivelPartida, ano);
-      const foraId = getOrCreateTime(p.fora, nivelPartida, ano);
-      if (!casaId||!foraId) throw new Error('time null');
-      const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
-      const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
-      exec("INSERT INTO partidas (data,ano,competicao_id,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-        [`${ano}-01-01`,ano,compId,casaId,foraId,p.gols_casa,p.gols_fora,nc,nf,r.ptsCasa,r.ptsFora]);
-      ok++;
-    } catch(e) { fail++; console.error(e,p); }
-  });
-  toast(`${ok} partidas importadas${fail?' · '+fail+' erros':''}.`);
-  document.getElementById('imp-texto').value='';
-  document.getElementById('imp-preview').style.display='none';
-  document.getElementById('imp-status').textContent='';
-  refreshAll();
+  const ignorarDupArquivo = document.getElementById('imp-ignorar-dup')?.checked !== false;
+  const ignorarExistentes = document.getElementById('imp-ignorar-existentes')?.checked !== false;
+
+  // Separar dups do arquivo para a fila de pendentes
+  const dupArquivoList = ignorarDupArquivo ? partidas.filter(p => p.dupArquivo) : [];
+  const fila = ignorarDupArquivo ? partidas.filter(p => !p.dupArquivo) : partidas;
+  const total = fila.length;
+  const BLOCO = 500;
+  let offset = 0, ok = 0, fail = 0, puladas = dupArquivoList.length;
+  const dupBancoList = []; // acumula {anterior, atual} durante o loop
+
+  // UI
+  document.getElementById('btn-importar').disabled = true;
+  document.getElementById('btn-importar').textContent = '⏳ Importando...';
+  document.getElementById('imp-progresso').style.display = 'block';
+  document.getElementById('imp-status').textContent = '';
+
+  function atualizarBarra() {
+    const pct = total > 0 ? Math.round((offset / total) * 100) : 0;
+    document.getElementById('imp-barra').style.width = pct + '%';
+    document.getElementById('imp-progresso-txt').textContent =
+      `Bloco ${Math.ceil(offset/BLOCO)} de ${Math.ceil(total/BLOCO)} · ${offset}/${total} partidas · ${ok} importadas${puladas?' · '+puladas+' puladas':''}${fail?' · '+fail+' erros':''}`;
+  }
+
+  function processarBloco() {
+    const bloco = fila.slice(offset, offset + BLOCO);
+    bloco.forEach(p => {
+      try {
+        let compId = compSel==='auto'?resolveCompId(p.uf):compSel?parseInt(compSel):null;
+        let mc = 1.0;
+        if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
+        const nivelPartida = SERIE_NIVEL[p.uf] || nivelDefault;
+        const casaId = getOrCreateTime(p.casa, nivelPartida, ano);
+        const foraId = getOrCreateTime(p.fora, nivelPartida, ano);
+        if (!casaId||!foraId) throw new Error('time null');
+        if (ignorarExistentes) {
+          const existe = query("SELECT id, competicao_id FROM partidas WHERE ano=? AND time_casa_id=? AND time_fora_id=? AND gols_casa=? AND gols_fora=?",
+            [ano, casaId, foraId, p.gols_casa, p.gols_fora]);
+          if (existe.length) {
+            dupBancoList.push({
+              atual: { uf: p.uf, casa: p.casa, gc: p.gols_casa, gf: p.gols_fora, fora: p.fora, linha: '(novo)' },
+              anterior: { uf: p.uf + ' (banco)', casa: p.casa, gc: p.gols_casa, gf: p.gols_fora, fora: p.fora, linha: '(banco)' }
+            });
+            puladas++; return;
+          }
+        }
+        const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
+        const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
+        exec("INSERT INTO partidas (data,ano,competicao_id,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+          [`${ano}-01-01`,ano,compId,casaId,foraId,p.gols_casa,p.gols_fora,nc,nf,r.ptsCasa,r.ptsFora]);
+        ok++;
+      } catch(e) { fail++; console.error(e,p); }
+    });
+    offset += bloco.length;
+    saveDB();
+    atualizarBarra();
+
+    if (offset < total) {
+      // Próximo bloco com setTimeout para liberar o browser
+      setTimeout(processarBloco, 30);
+    } else {
+      // Finalizado
+      document.getElementById('btn-importar').disabled = false;
+      document.getElementById('btn-importar').textContent = '⚡ Importar Partidas';
+      document.getElementById('imp-progresso').style.display = 'none';
+      document.getElementById('imp-barra').style.width = '0%';
+      document.getElementById('imp-texto').value = '';
+      document.getElementById('imp-preview').style.display = 'none';
+      document.getElementById('imp-status').textContent = '';
+      // Registrar pendentes para revisão
+      const cfgPendentes = { ano, compSel, nivelDefault, mando, cfg };
+      registrarPendentes(
+        dupArquivoList.map(p => ({ uf: p.uf, casa: p.casa, gc: p.gols_casa, gf: p.gols_fora, fora: p.fora, linha: '(arquivo)' })),
+        dupBancoList,
+        cfgPendentes
+      );
+      const temPendentes = dupArquivoList.length + dupBancoList.length > 0;
+      toast(`✅ ${ok} partidas importadas${puladas?' · '+puladas+' puladas':''}${fail?' · '+fail+' erros':''}.${temPendentes?' ⚠️ Verifique a aba Pendentes.':''}`);
+      refreshAll();
+    }
+  }
+
+  // Iniciar primeira iteração
+  atualizarBarra();
+  setTimeout(processarBloco, 30);
 }
 
 function importarTimes() {
@@ -1514,7 +1639,7 @@ function importarTimes() {
     } catch(e){ console.error(e); }
   });
   document.getElementById('imp-times-status').textContent=`${timesOk} times, ${niveisOk} níveis importados`;
-  toast(`${timesOk} times importados!`);
+  saveDB(); toast(`${timesOk} times importados!`);
   refreshAll();
 }
 
@@ -1836,6 +1961,124 @@ function restaurarBanco() {
     document.getElementById('backup-file').value = '';
     toast('✅ Banco restaurado com sucesso!');
   } catch(e) { toast('Erro ao restaurar: ' + e.message, true); }
+}
+
+
+// ─────────────────────────────────────────
+// PENDENTES
+// ─────────────────────────────────────────
+let _pendentes = { dupArquivo: [], dupBanco: [] };
+let _pendentesConfig = {}; // ano, compSel, nivelDefault, mando, cfg
+
+function registrarPendentes(dupArquivo, dupBanco, config) {
+  _pendentes = { dupArquivo, dupBanco };
+  _pendentesConfig = config;
+  const total = dupArquivo.length + dupBanco.length;
+  // Atualizar badge no nav
+  const lbl = document.getElementById('nav-pendentes-label');
+  if (lbl) lbl.textContent = total > 0 ? `Pendentes (${total})` : 'Pendentes';
+  renderPendentes();
+}
+
+function renderPendentes() {
+  const { dupArquivo, dupBanco } = _pendentes;
+  const total = dupArquivo.length + dupBanco.length;
+
+  document.getElementById('pendentes-vazio').style.display = total === 0 ? 'flex' : 'none';
+  document.getElementById('pendentes-conteudo').style.display = total > 0 ? 'block' : 'none';
+
+  // Seção dups arquivo
+  const secA = document.getElementById('sec-dup-arquivo');
+  secA.style.display = dupArquivo.length ? 'block' : 'none';
+  document.getElementById('cnt-dup-arquivo').textContent = dupArquivo.length;
+  if (dupArquivo.length) {
+    document.getElementById('tabela-dup-arquivo').innerHTML = renderTabelaPendentes(dupArquivo, 'dup-arquivo');
+  }
+
+  // Seção dups banco
+  const secB = document.getElementById('sec-dup-banco');
+  secB.style.display = dupBanco.length ? 'block' : 'none';
+  document.getElementById('cnt-dup-banco').textContent = dupBanco.length;
+  if (dupBanco.length) {
+    document.getElementById('tabela-dup-banco').innerHTML = renderTabelaPendentes(dupBanco, 'dup-banco', true);
+  }
+}
+
+function renderTabelaPendentes(lista, grupo, showConflito=false) {
+  const rows = lista.map((item, i) => {
+    const p = showConflito ? item.atual : item;
+    const conf = showConflito ? item.anterior : null;
+    const nivel = SERIE_NIVEL[p.uf] || 4;
+    const nivelBadge = nivel ? `<span class="badge badge-n${nivel}" style="font-size:11px">N${nivel}</span>` : '';
+    const confStr = conf ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">Conflito: ${conf.uf} L${conf.linha}</div>` : '';
+    return `<tr>
+      <td><input type="checkbox" data-grupo="${grupo}" data-idx="${i}" style="cursor:pointer"></td>
+      <td style="color:var(--muted);font-size:12px">${p.uf}${confStr}</td>
+      <td style="font-weight:600;text-align:right">${p.casa}</td>
+      <td class="score-cell">${p.gc}×${p.gf}</td>
+      <td style="font-weight:600">${p.fora}</td>
+      <td>${nivelBadge}</td>
+      <td style="color:var(--muted);font-size:11px">L${p.linha}</td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr><th></th><th>Comp</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th>Nível</th><th>Linha</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function selecionarTodos(grupo, marcar) {
+  document.querySelectorAll(`input[data-grupo="${grupo}"]`).forEach(cb => cb.checked = marcar);
+}
+
+function importarSelecionados() {
+  const cfg = _pendentesConfig;
+  if (!cfg.ano) return toast('Nenhuma importação em andamento.', true);
+
+  const selecionados = [];
+  document.querySelectorAll('input[data-grupo]:checked').forEach(cb => {
+    const grupo = cb.dataset.grupo;
+    const idx = parseInt(cb.dataset.idx);
+    const item = grupo === 'dup-arquivo' ? _pendentes.dupArquivo[idx] : _pendentes.dupBanco[idx]?.atual;
+    if (item) selecionados.push(item);
+  });
+
+  if (!selecionados.length) return toast('Nenhuma partida selecionada.', true);
+
+  let ok = 0, fail = 0;
+  selecionados.forEach(p => {
+    try {
+      let compId = cfg.compSel==='auto' ? resolveCompId(p.uf) : cfg.compSel ? parseInt(cfg.compSel) : null;
+      let mc = 1.0;
+      if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
+      const nivelPartida = SERIE_NIVEL[p.uf] || cfg.nivelDefault;
+      const casaId = getOrCreateTime(p.casa, nivelPartida, cfg.ano);
+      const foraId = getOrCreateTime(p.fora, nivelPartida, cfg.ano);
+      if (!casaId||!foraId) throw new Error('time null');
+      const nc = resolveNivel(casaId, cfg.ano), nf = resolveNivel(foraId, cfg.ano);
+      const r = calcPontuacaoV2(p.gc, p.gf, nc, nf, cfg.mando, mc, cfg.cfg);
+      exec("INSERT INTO partidas (data,ano,competicao_id,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        [`${cfg.ano}-01-01`, cfg.ano, compId, casaId, foraId, p.gc, p.gf, nc, nf, r.ptsCasa, r.ptsFora]);
+      ok++;
+    } catch(e) { fail++; console.error(e,p); }
+  });
+
+  // Remover os importados da lista
+  const importadosIdx = { 'dup-arquivo': [], 'dup-banco': [] };
+  document.querySelectorAll('input[data-grupo]:checked').forEach(cb => {
+    importadosIdx[cb.dataset.grupo].push(parseInt(cb.dataset.idx));
+  });
+  _pendentes.dupArquivo = _pendentes.dupArquivo.filter((_,i) => !importadosIdx['dup-arquivo'].includes(i));
+  _pendentes.dupBanco = _pendentes.dupBanco.filter((_,i) => !importadosIdx['dup-banco'].includes(i));
+
+  saveDB();
+  refreshAll();
+  registrarPendentes(_pendentes.dupArquivo, _pendentes.dupBanco, _pendentesConfig);
+  toast(`✅ ${ok} partidas importadas${fail?' · '+fail+' erros':''}.`);
+}
+
+function limparPendentes() {
+  if (!confirm('Limpar a lista de pendentes sem importar?')) return;
+  _pendentes = { dupArquivo: [], dupBanco: [] };
+  registrarPendentes([], [], {});
+  toast('Lista limpa.');
 }
 
 </script>
