@@ -359,8 +359,9 @@
         <div class="form-group"><label>Ano</label><input type="number" id="imp-ano" value="2011"></div>
         <div class="form-group"><label>Competição</label>
           <select id="imp-comp"><option value="auto">Auto (por UF)</option><option value="">— Nenhuma —</option></select></div>
-        <div class="form-group"><label>Nível padrão (times novos)</label>
-          <select id="imp-nivel-default"><option value="4" selected>N4</option><option value="3">N3</option><option value="2">N2</option><option value="1">N1</option></select></div>
+        <div class="form-group"><label>Nível padrão</label>
+          <select id="imp-nivel-default"><option value="4" selected>N4</option><option value="3">N3</option><option value="2">N2</option><option value="1">N1</option></select>
+          <small style="color:var(--muted);font-size:11px">Usado quando o identificador é UF (SP, RJ…).<br>Se for série (A, B, C, D), o nível é derivado automaticamente.</small></div>
         <div class="form-group"><label>Mando</label>
           <select id="imp-mando"><option value="normal">Normal (casa/fora)</option><option value="neutro">Neutro</option></select></div>
       </div>
@@ -1302,6 +1303,7 @@ function atualizarRefTable() {
 // ─────────────────────────────────────────
 // IMPORTAR RESULTADOS
 // ─────────────────────────────────────────
+const SERIE_NIVEL = {'A':1,'B':2,'C':3,'D':4};
 const UF_COMP = {"AC": 35, "AL": 19, "AM": 20, "AP": 21, "BA": 15, "CE": 17, "DF": 22, "ES": 23, "GO": 18, "MA": 24, "MG": 11, "MS": 26, "MT": 25, "PA": 27, "PB": 28, "PE": 16, "PI": 29, "PR": 14, "RJ": 10, "RN": 30, "RO": 31, "RR": 32, "RS": 13, "SC": 13, "SE": 33, "SP": 9, "TO": 34};
 
 function loadFile(input, targetId) {
@@ -1385,8 +1387,10 @@ function executarImport() {
       let compId = compSel==='auto'?(UF_COMP[p.uf]||null):compSel?parseInt(compSel):null;
       let mc = 1.0;
       if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
-      const casaId = getOrCreateTime(p.casa,nivelDefault,ano);
-      const foraId = getOrCreateTime(p.fora,nivelDefault,ano);
+      // Se UF é A/B/C/D → deriva nível da série; senão usa nivelDefault
+      const nivelPartida = SERIE_NIVEL[p.uf] || nivelDefault;
+      const casaId = getOrCreateTime(p.casa, nivelPartida, ano);
+      const foraId = getOrCreateTime(p.fora, nivelPartida, ano);
       if (!casaId||!foraId) throw new Error('time null');
       const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
       const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
