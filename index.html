@@ -620,7 +620,7 @@ async function initSQLite() {
         DB = loaded;
         // Migração: forçar valores corretos independente do que estava salvo
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa'");
-        DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_fora' AND valor!=1.0");
+        // mult_mando_fora: não forçar — valor correto é 1.2, preservar o que está no banco
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_neutro' AND valor!=1.0");
         DB.run("UPDATE competicoes SET multiplicador=1.0 WHERE multiplicador!=1.0 AND tipo!='amistoso'");
         DB.run("UPDATE competicoes SET multiplicador=0.5 WHERE tipo='amistoso'");
@@ -650,7 +650,7 @@ async function initSQLite() {
             pts_vitoria_fator_d1:0.5, pts_vitoria_fator_d2:0.25, pts_vitoria_fator_d3:0.0,
             pts_derrota_pen_d1:-50, pts_derrota_pen_d2:-125, pts_derrota_pen_d3:-200,
             pts_empate_base:33, pts_empate_bonus_fator:0.3333333333, pts_empate_pen_nivel:-11,
-            mult_mando_casa:1.0, mult_mando_fora:1.0, mult_mando_neutro:1.0
+            mult_mando_casa:1.0, mult_mando_fora:1.20, mult_mando_neutro:1.0
           };
           // Buscar config atual do banco (já migrada)
           try {
@@ -918,9 +918,18 @@ function carregarRanking() {
     else{stats[ci].e++;stats[fi].e++;}
   });
 
+  // Buscar pais de cada time para excluir internacionais do ranking
+  const paisPorId = {};
+  if (Object.keys(stats).length) {
+    const ids = Object.keys(stats).join(',');
+    query(`SELECT id, pais FROM times WHERE id IN (${ids})`).forEach(t => {
+      paisPorId[t.id] = t.pais;
+    });
+  }
+
   let ranked = Object.entries(stats)
     .map(([id,s])=>({id,...s,media:s.j?s.pts/s.j:0}))
-    .filter(r => r.j >= minJogos)
+    .filter(r => r.j >= minJogos && (paisPorId[r.id] || 'Brasil') === 'Brasil')
     .sort((a,b)=>b.pts-a.pts);
 
   if(!ranked.length){
@@ -1391,6 +1400,32 @@ function atualizarRefTable() {
 // ─────────────────────────────────────────
 const SERIE_NIVEL = {'A':1,'B':2,'C':3,'D':4};
 
+// Nível baseado no maior campeonato disputado na partida
+// M/MUN/R/RCP/S/SUD/L/LIB/A = N1, B = N2, C = N3, resto = N4
+const UF_NIVEL = {
+  'A':1,'L':1,'LIB':1,'S':1,'SUD':1,'R':1,'RCP':1,'M':1,'MUN':1,
+  'B':2, 'C':3
+};
+// UF → estado brasileiro (para vincular o time ao campeonato estadual)
+const UF_ESTADO = {
+  'SP':'SP','RJ':'RJ','MG':'MG','RS':'RS','SC':'SC','PR':'PR',
+  'BA':'BA','PE':'PE','CE':'CE','GO':'GO','AL':'AL','AM':'AM',
+  'AP':'AP','DF':'DF','ES':'ES','MA':'MA','MT':'MT','MS':'MS',
+  'PA':'PA','PB':'PB','PI':'PI','RN':'RN','RO':'RO','RR':'RR',
+  'SE':'SE','TO':'TO','AC':'AC'
+};
+// Sufixo no nome do time → país
+const SUFIXO_PAIS = {
+  'ARG':'Argentina','PAR':'Paraguai','CHI':'Chile','URU':'Uruguai',
+  'BOL':'Bolívia','COL':'Colômbia','PER':'Peru','VEN':'Venezuela',
+  'ECU':'Equador','MEX':'México','USA':'Estados Unidos','POR':'Portugal',
+  'ESP':'Espanha','ITA':'Itália','ENG':'Inglaterra','GER':'Alemanha',
+  'FRA':'França','NED':'Países Baixos','BEL':'Bélgica','SCO':'Escócia',
+  'CRO':'Croácia','SRB':'Sérvia','MOR':'Marrocos','EGY':'Egito',
+  'JPN':'Japão','KOR':'Coreia do Sul','SAU':'Arábia Saudita',
+  'UAE':'Emirados Árabes','MAR':'Marrocos','AUS':'Austrália'
+};
+
 // Mapa direto: código → id fixo da competição no banco
 // IDs definidos no seed: 1=BrA, 2=BrB, 3=BrC, 4=BrD, 5=CopaBr, 6=Lib, 7=SulAm, 8=Recopa
 // 9=SP, 10=RJ, 11=MG, 12=RS, 13=SC, 14=PR, 15=BA, 16=PE, 17=CE, 18=GO, 19=AL
@@ -1499,19 +1534,52 @@ function previewImport() {
   document.getElementById('imp-preview').style.display='block';
 }
 
-function getOrCreateTime(nome, nivel, ano) {
-  // "uf" do arquivo = identificador da competição, NÃO estado do time
-  const n = nome.trim();
-  let row = query("SELECT id FROM times WHERE nome=?",[n])[0];
+function detectarPaisPorSufixo(nome) {
+  // Ex: "Boca Juniors-ARG" → { pais: 'Argentina', nomeLimpo: 'Boca Juniors' }
+  const m = nome.match(/^(.+)-([A-Z]{2,3})$/);
+  if (m) {
+    const sufixo = m[2].toUpperCase();
+    const pais = SUFIXO_PAIS[sufixo];
+    if (pais) return { pais, nomeLimpo: m[1].trim() };
+  }
+  return { pais: 'Brasil', nomeLimpo: nome.trim() };
+}
+
+function getOrCreateTime(nomeOriginal, nivel, ano, uf) {
+  const { pais, nomeLimpo } = detectarPaisPorSufixo(nomeOriginal.trim());
+  const internacional = pais !== 'Brasil';
+  const nivelFinal = internacional ? 1 : nivel; // internacionais sempre N1
+
+  // Busca pelo nome limpo (sem sufixo de país)
+  let row = query("SELECT id FROM times WHERE nome=?",[nomeLimpo])[0];
   if (!row) {
-    // Cria sem estado — usuário define depois na aba Times
-    exec("INSERT INTO times (nome,pais,estado) VALUES (?,?,?)",[n,'Brasil',null]);
-    row = query("SELECT id FROM times WHERE nome=?",[n])[0];
+    // Determinar estado: só para campeonatos estaduais (UF_ESTADO)
+    const estado = (!internacional && uf && UF_ESTADO[uf]) ? UF_ESTADO[uf] : null;
+    exec("INSERT INTO times (nome,nome_curto,pais,estado) VALUES (?,?,?,?)",
+      [nomeLimpo, null, pais, estado]);
+    row = query("SELECT id FROM times WHERE nome=?",[nomeLimpo])[0];
+  } else {
+    // Time já existe — atualizar país se era desconhecido e agora temos info
+    const existente = query("SELECT pais, estado FROM times WHERE id=?",[row.id])[0];
+    if (existente && existente.pais === 'Brasil' && internacional) {
+      exec("UPDATE times SET pais=? WHERE id=?", [pais, row.id]);
+    }
+    // Vincular estado se campeonato estadual e ainda não tem estado definido
+    if (!internacional && uf && UF_ESTADO[uf] && !existente?.estado) {
+      exec("UPDATE times SET estado=? WHERE id=?", [UF_ESTADO[uf], row.id]);
+    }
   }
   if (!row) return null;
   const tid = row.id;
+  // Só registra nível se não existe ainda para o ano
   if (!query("SELECT id FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0])
-    exec("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)",[tid,ano,nivel]);
+    exec("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)",[tid,ano,nivelFinal]);
+  else {
+    // Atualiza nível se o novo for MENOR (mais alto na hierarquia)
+    const atual = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0];
+    if (atual && nivelFinal < atual.nivel)
+      exec("UPDATE times_nivel SET nivel=? WHERE time_id=? AND ano=?",[nivelFinal,tid,ano]);
+  }
   return tid;
 }
 
@@ -1522,7 +1590,7 @@ function executarImport() {
   if (!partidas.length) return toast('Nenhuma partida válida.',true);
   const ano = parseInt(document.getElementById('imp-ano').value)||2011;
   const compSel = document.getElementById('imp-comp').value;
-  const nivelDefault = parseInt(document.getElementById('imp-nivel-default').value)||4;
+  // Nível derivado automaticamente por UF_NIVEL — sem seleção manual
   const mando = document.getElementById('imp-mando').value;
   const cfg = getCfg();
   const ignorarDupArquivo = document.getElementById('imp-ignorar-dup')?.checked !== false;
@@ -1556,9 +1624,9 @@ function executarImport() {
         let compId = compSel==='auto'?resolveCompId(p.uf):compSel?parseInt(compSel):null;
         let mc = 1.0;
         if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
-        const nivelPartida = SERIE_NIVEL[p.uf] || nivelDefault;
-        const casaId = getOrCreateTime(p.casa, nivelPartida, ano);
-        const foraId = getOrCreateTime(p.fora, nivelPartida, ano);
+        const nivelPartida = UF_NIVEL[p.uf] || 4; // A/L/S/R/M=1, B=2, C=3, estaduais/CB=4
+        const casaId = getOrCreateTime(p.casa, nivelPartida, ano, p.uf);
+        const foraId = getOrCreateTime(p.fora, nivelPartida, ano, p.uf);
         if (!casaId||!foraId) throw new Error('time null');
         if (ignorarExistentes) {
           const existe = query("SELECT id, competicao_id FROM partidas WHERE ano=? AND time_casa_id=? AND time_fora_id=? AND gols_casa=? AND gols_fora=?",
@@ -2048,9 +2116,9 @@ function importarSelecionados() {
       let compId = cfg.compSel==='auto' ? resolveCompId(p.uf) : cfg.compSel ? parseInt(cfg.compSel) : null;
       let mc = 1.0;
       if (compId) { const c=query("SELECT multiplicador FROM competicoes WHERE id=?",[compId])[0]; if(c) mc=c.multiplicador; }
-      const nivelPartida = SERIE_NIVEL[p.uf] || cfg.nivelDefault;
-      const casaId = getOrCreateTime(p.casa, nivelPartida, cfg.ano);
-      const foraId = getOrCreateTime(p.fora, nivelPartida, cfg.ano);
+      const nivelPartida = UF_NIVEL[p.uf] || 4;
+      const casaId = getOrCreateTime(p.casa, nivelPartida, cfg.ano, p.uf);
+      const foraId = getOrCreateTime(p.fora, nivelPartida, cfg.ano, p.uf);
       if (!casaId||!foraId) throw new Error('time null');
       const nc = resolveNivel(casaId, cfg.ano), nf = resolveNivel(foraId, cfg.ano);
       const r = calcPontuacaoV2(p.gc, p.gf, nc, nf, cfg.mando, mc, cfg.cfg);
