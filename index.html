@@ -620,7 +620,7 @@ async function initSQLite() {
         DB = loaded;
         // Migração: forçar valores corretos independente do que estava salvo
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa'");
-        // mult_mando_fora: não forçar — valor correto é 1.2, preservar o que está no banco
+        DB.run("UPDATE config_pontuacao SET valor=1.20 WHERE chave='mult_mando_fora' AND valor!=1.20");
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_neutro' AND valor!=1.0");
         DB.run("UPDATE competicoes SET multiplicador=1.0 WHERE multiplicador!=1.0 AND tipo!='amistoso'");
         DB.run("UPDATE competicoes SET multiplicador=0.5 WHERE tipo='amistoso'");
