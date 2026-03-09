@@ -1663,7 +1663,7 @@ function executarImport() {
       document.getElementById('imp-preview').style.display = 'none';
       document.getElementById('imp-status').textContent = '';
       // Registrar pendentes para revisão
-      const cfgPendentes = { ano, compSel, nivelDefault, mando, cfg };
+      const cfgPendentes = { ano, compSel, mando, cfg };
       registrarPendentes(
         dupArquivoList.map(p => ({ uf: p.uf, casa: p.casa, gc: p.gols_casa, gf: p.gols_fora, fora: p.fora, linha: '(arquivo)' })),
         dupBancoList,
