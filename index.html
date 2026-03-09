@@ -105,6 +105,7 @@
     <a onclick="showPage('partidas')" data-page="partidas"><span class="icon">📋</span><span>Partidas</span></a>
     <a onclick="showPage('h2h')" data-page="h2h"><span class="icon">⚔️</span><span>Head-to-Head</span></a>
     <a onclick="showPage('times')" data-page="times"><span class="icon">👥</span><span>Times</span></a>
+    <a onclick="showPage('aliases')" data-page="aliases"><span class="icon">🔀</span><span>Aliases</span></a>
     <a onclick="showPage('config')" data-page="config"><span class="icon">⚙️</span><span>Pontuação</span></a>
     <a onclick="showPage('validador')" data-page="validador"><span class="icon">🔬</span><span>Validador</span></a>
     <a onclick="showPage('importar')" data-page="importar"><span class="icon">📥</span><span>Importar</span></a>
@@ -240,6 +241,45 @@
   </div>
 
   <!-- CONFIG -->
+  <div class="page" id="page-aliases">
+    <div class="page-header">
+      <div><h2>Aliases de Times</h2><p>Nomes alternativos que apontam para o mesmo clube</p></div>
+      <button class="btn btn-primary" onclick="toggleForm('form-alias')">➕ Novo Alias</button>
+    </div>
+
+    <div id="form-alias" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+      <p class="section-title">Cadastrar Alias</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome alternativo (alias)</label>
+          <input type="text" id="al-alias" placeholder="Ex: Atlético-PR">
+          <small style="color:var(--muted);font-size:11px">Nome como aparece nos dados históricos</small>
+        </div>
+        <div class="form-group">
+          <label>Time principal</label>
+          <select id="al-time-id"></select>
+          <small style="color:var(--muted);font-size:11px">Nome canônico que será usado no ranking</small>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px">
+        <button class="btn btn-primary" onclick="salvarAlias()">💾 Salvar</button>
+        <button class="btn" onclick="toggleForm('form-alias')">Cancelar</button>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;font-size:13px;color:var(--muted);">
+      <strong style="color:var(--text)">Como funciona:</strong> quando um alias é definido, toda nova importação que encontrar o nome alternativo atribui os pontos ao time principal.
+      Para consolidar partidas já importadas com nomes antigos, use o botão <strong>"🔄 Reconsolidar"</strong> — ele remapeia partidas históricas e recalcula os pontos.
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="al-busca" placeholder="🔍 Filtrar aliases..." oninput="carregarAliases()" style="flex:1;min-width:200px">
+      <button class="btn btn-primary" onclick="reconsolidarAliases()" title="Remapear partidas históricas e recalcular pontos">🔄 Reconsolidar partidas</button>
+    </div>
+
+    <div id="aliases-table"></div>
+  </div>
+
   <div class="page" id="page-config">
     <div class="page-header">
       <div><h2>Configuração de Pontuação</h2><p>Ajuste pesos e multiplicadores do sistema</p></div>
@@ -721,6 +761,7 @@ function applySchema() {
     CREATE TABLE IF NOT EXISTS times_nivel (id INTEGER PRIMARY KEY AUTOINCREMENT, time_id INTEGER NOT NULL REFERENCES times(id), ano INTEGER NOT NULL, nivel INTEGER NOT NULL, divisao TEXT, UNIQUE(time_id,ano));
     CREATE TABLE IF NOT EXISTS competicoes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, tipo TEXT NOT NULL, pais TEXT, multiplicador REAL NOT NULL DEFAULT 1.0);
     CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, ano INTEGER NOT NULL, competicao_id INTEGER REFERENCES competicoes(id), fase TEXT, time_casa_id INTEGER NOT NULL REFERENCES times(id), time_fora_id INTEGER NOT NULL REFERENCES times(id), gols_casa INTEGER NOT NULL, gols_fora INTEGER NOT NULL, nivel_casa INTEGER, nivel_fora INTEGER, pts_casa REAL, pts_fora REAL, observacoes TEXT);
+    CREATE TABLE IF NOT EXISTS times_alias (id INTEGER PRIMARY KEY AUTOINCREMENT, alias TEXT NOT NULL UNIQUE, time_id INTEGER NOT NULL REFERENCES times(id));
     CREATE TABLE IF NOT EXISTS config_pontuacao (id INTEGER PRIMARY KEY AUTOINCREMENT, chave TEXT NOT NULL UNIQUE, valor REAL NOT NULL, descricao TEXT);
     INSERT OR IGNORE INTO config_pontuacao (chave, valor, descricao) VALUES
       ('pts_vitoria_base',100,'Pontos base por vitória (mesmo nível)'),
@@ -1100,6 +1141,129 @@ function carregarH2H() {
 // ─────────────────────────────────────────
 // TIMES
 // ─────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════
+// ALIASES
+// ═══════════════════════════════════════════════════════
+function carregarAliases() {
+  const busca = (document.getElementById('al-busca')?.value || '').toLowerCase();
+  const rows = query(`
+    SELECT a.id, a.alias, t.id AS time_id, t.nome AS time_nome
+    FROM times_alias a JOIN times t ON t.id=a.time_id
+    ORDER BY a.alias
+  `);
+  const filtrados = busca ? rows.filter(r =>
+    r.alias.toLowerCase().includes(busca) || r.time_nome.toLowerCase().includes(busca)
+  ) : rows;
+
+  if (!filtrados.length) {
+    document.getElementById('aliases-table').innerHTML =
+      `<div class="empty-state"><div class="icon">🔀</div><p>Nenhum alias cadastrado.</p></div>`;
+    return;
+  }
+  document.getElementById('aliases-table').innerHTML = `
+    <table><thead><tr>
+      <th>Nome Alternativo (Alias)</th><th>→</th><th>Time Principal</th><th></th>
+    </tr></thead><tbody>
+    ${filtrados.map(a => `<tr>
+      <td style="font-weight:600">${a.alias}</td>
+      <td style="color:var(--muted);text-align:center">→</td>
+      <td>${a.time_nome}</td>
+      <td style="text-align:right">
+        <button class="btn btn-sm btn-danger" onclick="excluirAlias(${a.id})">🗑</button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function preencherSelectTimes() {
+  const sel = document.getElementById('al-time-id');
+  if (!sel) return;
+  const times = query("SELECT id, nome FROM times WHERE pais='Brasil' ORDER BY nome");
+  sel.innerHTML = times.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+}
+
+function salvarAlias() {
+  const alias = document.getElementById('al-alias').value.trim();
+  const timeId = parseInt(document.getElementById('al-time-id').value);
+  if (!alias) return toast('Informe o nome alternativo.', true);
+  if (!timeId) return toast('Selecione o time principal.', true);
+
+  // Verificar se alias já é nome de um time
+  const nomeBloqueado = query('SELECT id FROM times WHERE nome=?', [alias])[0];
+  if (nomeBloqueado) return toast('Esse nome já pertence a um time cadastrado.', true);
+
+  try {
+    exec('INSERT INTO times_alias (alias, time_id) VALUES (?,?)', [alias, timeId]);
+    saveDB();
+    toast(`✅ Alias "${alias}" salvo.`);
+    document.getElementById('al-alias').value = '';
+    toggleForm('form-alias');
+    carregarAliases();
+  } catch(e) {
+    toast('Alias já existe ou erro ao salvar.', true);
+  }
+}
+
+function excluirAlias(id) {
+  if (!confirm('Excluir este alias?')) return;
+  exec('DELETE FROM times_alias WHERE id=?', [id]);
+  saveDB();
+  carregarAliases();
+  toast('Alias removido.');
+}
+
+function reconsolidarAliases() {
+  const aliases = query('SELECT alias, time_id FROM times_alias');
+  if (!aliases.length) return toast('Nenhum alias cadastrado.', true);
+
+  if (!confirm(`Isso vai remapear partidas históricas de ${aliases.length} alias(es) e recalcular pontos. Continuar?`)) return;
+
+  let remap = 0;
+  const cfg = getCfg();
+  aliases.forEach(({ alias, time_id }) => {
+    // Encontrar time com esse nome (alias antigo)
+    const aliasTime = query('SELECT id FROM times WHERE nome=?', [alias])[0];
+    if (!aliasTime) return;
+    const oldId = aliasTime.id;
+    if (oldId === time_id) return; // mesmo time, nada a fazer
+
+    // Remapear partidas: time_casa_id
+    exec('UPDATE partidas SET time_casa_id=? WHERE time_casa_id=?', [time_id, oldId]);
+    // Remapear partidas: time_fora_id
+    exec('UPDATE partidas SET time_fora_id=? WHERE time_fora_id=?', [time_id, oldId]);
+    // Consolidar times_nivel (manter o menor nível por ano)
+    const niveis = query('SELECT ano, nivel FROM times_nivel WHERE time_id=?', [oldId]);
+    niveis.forEach(({ ano, nivel }) => {
+      const atual = query('SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?', [time_id, ano])[0];
+      if (!atual) exec('INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)', [time_id, ano, nivel]);
+      else if (nivel < atual.nivel) exec('UPDATE times_nivel SET nivel=? WHERE time_id=? AND ano=?', [nivel, time_id, ano]);
+      exec('DELETE FROM times_nivel WHERE time_id=? AND ano=?', [oldId, ano]);
+    });
+    remap++;
+  });
+
+  // Recalcular pontos de todas as partidas afetadas
+  const partidas = DB.exec('SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, p.time_casa_id, p.time_fora_id, p.competicao_id FROM partidas p');
+  if (partidas.length) {
+    const cols = partidas[0].columns;
+    partidas[0].values.forEach(row => {
+      const p = Object.fromEntries(cols.map((c,i)=>[c,row[i]]));
+      const nc = resolveNivel(p.time_casa_id, null, p.nivel_casa);
+      const nf = resolveNivel(p.time_fora_id, null, p.nivel_fora);
+      let mc = 1.0;
+      if (p.competicao_id) { const c=query('SELECT multiplicador FROM competicoes WHERE id=?',[p.competicao_id])[0]; if(c) mc=c.multiplicador; }
+      const r = calcPontuacaoV2(p.gols_casa, p.gols_fora, nc, nf, 'casa', mc, cfg);
+      exec('UPDATE partidas SET nivel_casa=?,nivel_fora=?,pts_casa=?,pts_fora=? WHERE id=?',
+        [nc, nf, r.ptsCasa, r.ptsFora, p.id]);
+    });
+  }
+
+  saveDB();
+  toast(`✅ ${remap} alias(es) reconsolidados. Partidas recalculadas.`);
+  refreshAll();
+}
+
 function carregarTimes() {
   const times=query(`SELECT t.id,t.nome,t.nome_curto,t.pais,t.estado,GROUP_CONCAT(tn.ano||':N'||tn.nivel,' | ') AS niveis FROM times t LEFT JOIN times_nivel tn ON tn.time_id=t.id GROUP BY t.id ORDER BY t.nome`);
   if(!times.length){document.getElementById('times-table').innerHTML=`<div class="empty-state"><div class="icon">👥</div><p>Nenhum time cadastrado.</p></div>`;return;}
@@ -1550,6 +1714,20 @@ function getOrCreateTime(nomeOriginal, nivel, ano, uf) {
   const internacional = pais !== 'Brasil';
   const nivelFinal = internacional ? 1 : nivel; // internacionais sempre N1
 
+  // Verifica alias primeiro
+  const aliasRow = query("SELECT time_id FROM times_alias WHERE alias=?",[nomeLimpo])[0];
+  if (aliasRow) {
+    const tid = aliasRow.time_id;
+    // Atualizar nível se necessário
+    if (!query("SELECT id FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0])
+      exec("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)",[tid,ano,nivelFinal]);
+    else {
+      const atual = query("SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0];
+      if (atual && nivelFinal < atual.nivel)
+        exec("UPDATE times_nivel SET nivel=? WHERE time_id=? AND ano=?",[nivelFinal,tid,ano]);
+    }
+    return tid;
+  }
   // Busca pelo nome limpo (sem sufixo de país)
   let row = query("SELECT id FROM times WHERE nome=?",[nomeLimpo])[0];
   if (!row) {
@@ -1859,6 +2037,8 @@ function showPage(name){
   document.querySelector(`nav a[data-page="${name}"]`).classList.add('active');
   if(name==='validador'){validar();atualizarRefTable();}
   if(name==='auditoria'){inicializarFiltrosAuditoria();carregarAuditoria();}
+  if(name==='times'){carregarTimes();}
+  if(name==='aliases'){carregarAliases();preencherSelectTimes();}
 }
 function toggleForm(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'block':'none';}
 function toast(msg,error=false){const t=document.getElementById('toast');t.textContent=(error?'❌ ':'✅ ')+msg;t.className='toast show'+(error?' error':'');setTimeout(()=>t.className='toast',3500);}
