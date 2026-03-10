@@ -104,6 +104,7 @@
     <a onclick="showPage('ranking')" data-page="ranking"><span class="icon">🏆</span><span>Ranking</span></a>
     <a onclick="showPage('partidas')" data-page="partidas"><span class="icon">📋</span><span>Partidas</span></a>
     <a onclick="showPage('h2h')" data-page="h2h"><span class="icon">⚔️</span><span>Head-to-Head</span></a>
+    <a onclick="showPage('historico')" data-page="historico"><span class="icon">📋</span><span>Histórico</span></a>
     <a onclick="showPage('times')" data-page="times"><span class="icon">👥</span><span>Times</span></a>
     <a onclick="showPage('aliases')" data-page="aliases"><span class="icon">🔀</span><span>Aliases</span></a>
     <a onclick="showPage('config')" data-page="config"><span class="icon">⚙️</span><span>Pontuação</span></a>
@@ -194,6 +195,34 @@
   </div>
 
   <!-- H2H -->
+  <div class="page" id="page-historico">
+    <div class="page-header">
+      <div><h2>Histórico do Time</h2><p>Resultados, campanhas por ano e adversários</p></div>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;">
+      <div class="form-group" style="flex:2;min-width:200px">
+        <label>Time</label>
+        <select id="hist-time" style="width:100%" onchange="carregarHistorico()"></select>
+      </div>
+      <div class="form-group">
+        <label>Ano</label>
+        <select id="hist-ano" onchange="carregarHistorico()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Competição</label>
+        <select id="hist-comp" onchange="carregarHistorico()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="hist-result"></div>
+  </div>
+
   <div class="page" id="page-h2h">
     <div class="page-header"><div><h2>Head-to-Head</h2><p>Comparativo direto entre dois times</p></div></div>
     <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;">
@@ -1100,6 +1129,225 @@ function salvarPartida() {
 // ─────────────────────────────────────────
 // H2H
 // ─────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════
+// HISTÓRICO DO TIME
+// ═══════════════════════════════════════════════════════
+function inicializarHistorico() {
+  // Popular select de times (só brasileiros)
+  const selTime = document.getElementById('hist-time');
+  if (!selTime) return;
+  const times = query("SELECT id, nome FROM times WHERE pais='Brasil' ORDER BY nome");
+  selTime.innerHTML = times.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+
+  // Popular anos disponíveis
+  const selAno = document.getElementById('hist-ano');
+  const anos = query('SELECT DISTINCT ano FROM partidas ORDER BY ano DESC');
+  selAno.innerHTML = '<option value="">Todos</option>' +
+    anos.map(a => `<option value="${a.ano}">${a.ano}</option>`).join('');
+
+  // Popular competições
+  const selComp = document.getElementById('hist-comp');
+  const comps = query('SELECT id, nome FROM competicoes ORDER BY nome');
+  selComp.innerHTML = '<option value="">Todas</option>' +
+    comps.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+  carregarHistorico();
+}
+
+function carregarHistorico() {
+  const timeId = parseInt(document.getElementById('hist-time')?.value);
+  if (!timeId) return;
+  const anoFiltro = document.getElementById('hist-ano')?.value || '';
+  const compFiltro = document.getElementById('hist-comp')?.value || '';
+  const nomeTime = query('SELECT nome FROM times WHERE id=?', [timeId])[0]?.nome || '';
+
+  // Query base: todas as partidas do time
+  let where = '(p.time_casa_id=? OR p.time_fora_id=?)';
+  const params = [timeId, timeId];
+  if (anoFiltro) { where += ' AND p.ano=?'; params.push(parseInt(anoFiltro)); }
+  if (compFiltro) { where += ' AND p.competicao_id=?'; params.push(parseInt(compFiltro)); }
+
+  const partidas = query(`
+    SELECT p.*, tc.nome AS casa_nome, tf.nome AS fora_nome,
+           COALESCE(c.nome,'—') AS comp_nome
+    FROM partidas p
+    JOIN times tc ON tc.id=p.time_casa_id
+    JOIN times tf ON tf.id=p.time_fora_id
+    LEFT JOIN competicoes c ON c.id=p.competicao_id
+    WHERE ${where}
+    ORDER BY p.ano DESC, p.competicao_id, p.id
+  `, params);
+
+  if (!partidas.length) {
+    document.getElementById('hist-result').innerHTML =
+      `<div class="empty-state"><div class="icon">📋</div><p>Nenhuma partida encontrada.</p></div>`;
+    return;
+  }
+
+  // ── Totais gerais ──────────────────────────────────────
+  let totJ=0, totV=0, totE=0, totD=0, totGP=0, totGC=0, totPts=0;
+  partidas.forEach(p => {
+    const minha = p.time_casa_id === timeId;
+    const gP = minha ? p.gols_casa : p.gols_fora;
+    const gC = minha ? p.gols_fora : p.gols_casa;
+    const pts = parseFloat(minha ? p.pts_casa : p.pts_fora) || 0;
+    totJ++; totGP+=gP; totGC+=gC; totPts+=pts;
+    if (gP>gC) totV++; else if (gP<gC) totD++; else totE++;
+  });
+
+  // ── Campanhas por ano × competição ────────────────────
+  const campanhasMap = {};
+  partidas.forEach(p => {
+    const key = `${p.ano}||${p.comp_nome}`;
+    if (!campanhasMap[key]) campanhasMap[key] = { ano: p.ano, comp: p.comp_nome, j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0 };
+    const s = campanhasMap[key];
+    const minha = p.time_casa_id === timeId;
+    const gP = minha ? p.gols_casa : p.gols_fora;
+    const gC = minha ? p.gols_fora : p.gols_casa;
+    s.j++; s.gp+=gP; s.gc+=gC; s.pts += parseFloat(minha?p.pts_casa:p.pts_fora)||0;
+    if(gP>gC) s.v++; else if(gP<gC) s.d++; else s.e++;
+  });
+  const campanhas = Object.values(campanhasMap).sort((a,b)=> b.ano-a.ano || a.comp.localeCompare(b.comp));
+
+  // ── Adversários ────────────────────────────────────────
+  const advsMap = {};
+  partidas.forEach(p => {
+    const advId = p.time_casa_id === timeId ? p.time_fora_id : p.time_casa_id;
+    const advNome = p.time_casa_id === timeId ? p.fora_nome : p.casa_nome;
+    if (!advsMap[advId]) advsMap[advId] = { nome: advNome, j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0 };
+    const s = advsMap[advId];
+    const minha = p.time_casa_id === timeId;
+    const gP = minha ? p.gols_casa : p.gols_fora;
+    const gC = minha ? p.gols_fora : p.gols_casa;
+    s.j++; s.gp+=gP; s.gc+=gC; s.pts += parseFloat(minha?p.pts_casa:p.pts_fora)||0;
+    if(gP>gC) s.v++; else if(gP<gC) s.d++; else s.e++;
+  });
+  const advs = Object.values(advsMap).sort((a,b)=> b.j-a.j || b.pts-a.pts);
+
+  // ── Últimas partidas ───────────────────────────────────
+  const ultimas = [...partidas].slice(0,30);
+
+  // ── Render ─────────────────────────────────────────────
+  const pct = (n,t) => t ? Math.round(n/t*100) : 0;
+  const fmtPts = pts => `<span class="pts-badge ${pts<0?'neg':''}" style="font-size:12px">${pts>0?'+':''}${pts.toFixed(0)}</span>`;
+
+  document.getElementById('hist-result').innerHTML = `
+
+    <!-- Cabeçalho do time -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;">
+      <div style="font-size:22px;font-weight:700;margin-bottom:16px">${nomeTime}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;text-align:center;">
+        ${[
+          ['Jogos', totJ],
+          ['Vitórias', totV, 'var(--success)'],
+          ['Empates', totE, 'var(--muted)'],
+          ['Derrotas', totD, 'var(--danger)'],
+          ['Gols Pró', totGP],
+          ['Gols Con', totGC],
+          ['Pontos', totPts.toFixed(0), totPts>=0?'var(--accent)':'var(--danger)'],
+          ['Média/J', totJ?(totPts/totJ).toFixed(1):0],
+          ['% V', pct(totV,totJ)+'%', 'var(--success)']
+        ].map(([l,v,cor]) => `
+          <div style="background:var(--bg);border-radius:8px;padding:12px 8px">
+            <div style="font-size:20px;font-weight:700;color:${cor||'var(--text)'}">${v}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${l}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Campanhas por ano/competição -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;">
+      <p class="section-title" style="margin-bottom:12px">📅 Campanhas por Ano e Competição</p>
+      <div style="overflow-x:auto">
+        <table><thead><tr>
+          <th>Ano</th><th>Competição</th><th style="text-align:center">J</th>
+          <th style="text-align:center">V</th><th style="text-align:center">E</th>
+          <th style="text-align:center">D</th><th style="text-align:center">GP</th>
+          <th style="text-align:center">GC</th><th style="text-align:right">Pts</th>
+          <th style="text-align:right">Média</th>
+        </tr></thead><tbody>
+        ${campanhas.map(c => `<tr>
+          <td style="font-weight:600">${c.ano}</td>
+          <td>${c.comp}</td>
+          <td style="text-align:center">${c.j}</td>
+          <td style="text-align:center;color:var(--success)">${c.v}</td>
+          <td style="text-align:center;color:var(--muted)">${c.e}</td>
+          <td style="text-align:center;color:var(--danger)">${c.d}</td>
+          <td style="text-align:center">${c.gp}</td>
+          <td style="text-align:center">${c.gc}</td>
+          <td style="text-align:right">${fmtPts(c.pts)}</td>
+          <td style="text-align:right;color:var(--muted);font-size:12px">${c.j?(c.pts/c.j).toFixed(1):0}</td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <!-- Adversários -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;">
+      <p class="section-title" style="margin-bottom:12px">🆚 Confrontos por Adversário</p>
+      <div style="overflow-x:auto">
+        <table><thead><tr>
+          <th>Adversário</th>
+          <th style="text-align:center">J</th>
+          <th style="text-align:center">V</th>
+          <th style="text-align:center">E</th>
+          <th style="text-align:center">D</th>
+          <th style="text-align:center">GP</th>
+          <th style="text-align:center">GC</th>
+          <th style="text-align:right">Pts</th>
+        </tr></thead><tbody>
+        ${advs.map(a => `<tr>
+          <td style="font-weight:600">${a.nome}</td>
+          <td style="text-align:center">${a.j}</td>
+          <td style="text-align:center;color:var(--success)">${a.v}</td>
+          <td style="text-align:center;color:var(--muted)">${a.e}</td>
+          <td style="text-align:center;color:var(--danger)">${a.d}</td>
+          <td style="text-align:center">${a.gp}</td>
+          <td style="text-align:center">${a.gc}</td>
+          <td style="text-align:right">${fmtPts(a.pts)}</td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <!-- Últimas partidas -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
+      <p class="section-title" style="margin-bottom:12px">🕐 Últimas Partidas (até 30)</p>
+      <div style="overflow-x:auto">
+        <table><thead><tr>
+          <th>Ano</th><th>Competição</th>
+          <th style="text-align:right">Casa</th>
+          <th style="text-align:center">Placar</th>
+          <th>Fora</th>
+          <th style="text-align:center">Res</th>
+          <th style="text-align:right">Pts</th>
+        </tr></thead><tbody>
+        ${ultimas.map(p => {
+          const minha = p.time_casa_id === timeId;
+          const gP = minha ? p.gols_casa : p.gols_fora;
+          const gC = minha ? p.gols_fora : p.gols_casa;
+          const pts = parseFloat(minha ? p.pts_casa : p.pts_fora) || 0;
+          const res = gP>gC ? '✅' : gP<gC ? '❌' : '🟡';
+          const destaque = minha
+            ? `style="font-weight:700;color:var(--accent)"`
+            : `style="color:var(--muted)"`;
+          return `<tr>
+            <td style="color:var(--muted);font-size:12px">${p.ano}</td>
+            <td style="font-size:12px;color:var(--muted)">${p.comp_nome}</td>
+            <td style="text-align:right" ${minha?'style="font-weight:700"':''}>${p.casa_nome}</td>
+            <td class="score-cell">${p.gols_casa}×${p.gols_fora}</td>
+            <td ${!minha?'style="font-weight:700"':''}>${p.fora_nome}</td>
+            <td style="text-align:center">${res}</td>
+            <td style="text-align:right">${fmtPts(pts)}</td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>
+      </div>
+    </div>
+  `;
+}
+
 function carregarH2H() {
   const t1=parseInt(document.getElementById('h-t1').value);
   const t2=parseInt(document.getElementById('h-t2').value);
@@ -2039,6 +2287,7 @@ function showPage(name){
   if(name==='auditoria'){inicializarFiltrosAuditoria();carregarAuditoria();}
   if(name==='times'){carregarTimes();}
   if(name==='aliases'){carregarAliases();preencherSelectTimes();}
+  if(name==='historico'){inicializarHistorico();}
 }
 function toggleForm(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'block':'none';}
 function toast(msg,error=false){const t=document.getElementById('toast');t.textContent=(error?'❌ ':'✅ ')+msg;t.className='toast show'+(error?' error':'');setTimeout(()=>t.className='toast',3500);}
