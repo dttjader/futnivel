@@ -687,6 +687,8 @@ async function initSQLite() {
       const n = loaded.exec("SELECT COUNT(*) FROM partidas")[0]?.values[0][0] || 0;
       if (n >= 0) {
         DB = loaded;
+        // Migração: criar tabelas novas que podem não existir em bancos antigos
+        DB.run("CREATE TABLE IF NOT EXISTS times_alias (id INTEGER PRIMARY KEY AUTOINCREMENT, alias TEXT NOT NULL UNIQUE, time_id INTEGER NOT NULL REFERENCES times(id))");
         // Migração: forçar valores corretos independente do que estava salvo
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa'");
         DB.run("UPDATE config_pontuacao SET valor=1.20 WHERE chave='mult_mando_fora' AND valor!=1.20");
