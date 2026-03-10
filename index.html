@@ -1437,16 +1437,77 @@ function salvarAlias() {
   if (!alias) return toast('Informe o nome alternativo.', true);
   if (!timeId) return toast('Selecione o time principal.', true);
 
+  // Verificar se o alias é o próprio time principal
+  const timePrincipal = query('SELECT nome FROM times WHERE id=?', [timeId])[0];
+  if (timePrincipal && timePrincipal.nome === alias)
+    return toast('O alias não pode ser igual ao nome do time principal.', true);
+
+  // Verificar se já existe alias duplicado apontando para o mesmo time
+  const aliasExistente = query('SELECT time_id FROM times_alias WHERE alias=?', [alias])[0];
+  if (aliasExistente) {
+    if (aliasExistente.time_id === timeId)
+      return toast('Este alias já está cadastrado para este time.', true);
+    return toast('Este alias já aponta para outro time. Exclua-o antes de redirecionar.', true);
+  }
+
+  // Se o alias é nome de um time já existente no banco,
+  // inserir o alias E já reconsolidar as partidas desse time
+  const timeComEsseNome = query('SELECT id FROM times WHERE nome=?', [alias])[0];
+
   try {
     exec('INSERT INTO times_alias (alias, time_id) VALUES (?,?)', [alias, timeId]);
     saveDB();
-    toast(`✅ Alias "${alias}" salvo.`);
-    document.getElementById('al-alias').value = '';
-    toggleForm('form-alias');
-    carregarAliases();
   } catch(e) {
-    toast('Alias já existe ou erro ao salvar.', true);
+    return toast('Erro ao salvar alias: ' + e.message, true);
   }
+
+  if (timeComEsseNome && timeComEsseNome.id !== timeId) {
+    // Reconsolidar imediatamente as partidas do time antigo
+    const oldId = timeComEsseNome.id;
+    const cfg = getCfg();
+
+    exec('UPDATE partidas SET time_casa_id=? WHERE time_casa_id=?', [timeId, oldId]);
+    exec('UPDATE partidas SET time_fora_id=? WHERE time_fora_id=?', [timeId, oldId]);
+
+    const niveis = query('SELECT ano, nivel FROM times_nivel WHERE time_id=?', [oldId]);
+    niveis.forEach(({ ano, nivel }) => {
+      const atual = query('SELECT nivel FROM times_nivel WHERE time_id=? AND ano=?', [timeId, ano])[0];
+      if (!atual) exec('INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)', [timeId, ano, nivel]);
+      else if (nivel < atual.nivel) exec('UPDATE times_nivel SET nivel=? WHERE time_id=? AND ano=?', [nivel, timeId, ano]);
+      exec('DELETE FROM times_nivel WHERE time_id=? AND ano=?', [oldId, ano]);
+    });
+
+    // Recalcular pontos das partidas afetadas
+    const afetadas = DB.exec(
+      'SELECT id,gols_casa,gols_fora,nivel_casa,nivel_fora,time_casa_id,time_fora_id,competicao_id FROM partidas WHERE time_casa_id=? OR time_fora_id=?',
+      [[timeId, timeId]]
+    );
+    if (afetadas.length) {
+      const cols = afetadas[0].columns;
+      afetadas[0].values.forEach(row => {
+        const p = Object.fromEntries(cols.map((c,i) => [c, row[i]]));
+        const nc = resolveNivel(p.time_casa_id, p.ano, p.nivel_casa);
+        const nf = resolveNivel(p.time_fora_id, p.ano, p.nivel_fora);
+        let mc = 1.0;
+        if (p.competicao_id) { const c = query('SELECT multiplicador FROM competicoes WHERE id=?', [p.competicao_id])[0]; if (c) mc = c.multiplicador; }
+        const r = calcPontuacaoV2(p.gols_casa, p.gols_fora, nc, nf, 'casa', mc, cfg);
+        exec('UPDATE partidas SET nivel_casa=?,nivel_fora=?,pts_casa=?,pts_fora=? WHERE id=?', [nc, nf, r.ptsCasa, r.ptsFora, p.id]);
+      });
+    }
+
+    exec('DELETE FROM times_nivel WHERE time_id=?', [oldId]);
+    exec('DELETE FROM times WHERE id=?', [oldId]);
+
+    saveDB();
+    toast(`✅ Alias criado e partidas de "${alias}" reconsolidadas para "${timePrincipal?.nome}".`);
+    refreshAll();
+  } else {
+    toast(`✅ Alias "${alias}" salvo.`);
+  }
+
+  document.getElementById('al-alias').value = '';
+  toggleForm('form-alias');
+  carregarAliases();
 }
 
 function excluirAlias(id) {
