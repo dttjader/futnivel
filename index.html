@@ -1137,7 +1137,7 @@ function inicializarHistorico() {
   // Popular select de times (só brasileiros)
   const selTime = document.getElementById('hist-time');
   if (!selTime) return;
-  const times = query("SELECT id, nome FROM times WHERE pais='Brasil' ORDER BY nome");
+  const times = query('SELECT id, nome, pais FROM times ORDER BY nome');
   selTime.innerHTML = times.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
 
   // Popular anos disponíveis
@@ -1427,8 +1427,8 @@ function carregarAliases() {
 function preencherSelectTimes() {
   const sel = document.getElementById('al-time-id');
   if (!sel) return;
-  const times = query("SELECT id, nome FROM times WHERE pais='Brasil' ORDER BY nome");
-  sel.innerHTML = times.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+  const times = query('SELECT id, nome, pais FROM times ORDER BY nome');
+  sel.innerHTML = times.map(t => `<option value="${t.id}">${t.nome}${t.pais && t.pais !== 'Brasil' ? ' ('+t.pais+')' : ''}</option>`).join('');
 }
 
 function salvarAlias() {
@@ -1436,10 +1436,6 @@ function salvarAlias() {
   const timeId = parseInt(document.getElementById('al-time-id').value);
   if (!alias) return toast('Informe o nome alternativo.', true);
   if (!timeId) return toast('Selecione o time principal.', true);
-
-  // Verificar se alias já é nome de um time
-  const nomeBloqueado = query('SELECT id FROM times WHERE nome=?', [alias])[0];
-  if (nomeBloqueado) return toast('Esse nome já pertence a um time cadastrado.', true);
 
   try {
     exec('INSERT INTO times_alias (alias, time_id) VALUES (?,?)', [alias, timeId]);
@@ -1470,11 +1466,11 @@ function reconsolidarAliases() {
   let remap = 0;
   const cfg = getCfg();
   aliases.forEach(({ alias, time_id }) => {
-    // Encontrar time com esse nome (alias antigo)
+    // Encontrar time com esse nome OU com esse alias como nome
     const aliasTime = query('SELECT id FROM times WHERE nome=?', [alias])[0];
-    if (!aliasTime) return;
+    if (!aliasTime) return; // nenhum time com esse nome — alias só vale para importações futuras
     const oldId = aliasTime.id;
-    if (oldId === time_id) return; // mesmo time, nada a fazer
+    if (oldId === time_id) return; // já é o mesmo time
 
     // Remapear partidas: time_casa_id
     exec('UPDATE partidas SET time_casa_id=? WHERE time_casa_id=?', [time_id, oldId]);
@@ -1488,6 +1484,9 @@ function reconsolidarAliases() {
       else if (nivel < atual.nivel) exec('UPDATE times_nivel SET nivel=? WHERE time_id=? AND ano=?', [nivel, time_id, ano]);
       exec('DELETE FROM times_nivel WHERE time_id=? AND ano=?', [oldId, ano]);
     });
+    // Apagar times_nivel e o time antigo (agora órfão — sem partidas)
+    exec('DELETE FROM times_nivel WHERE time_id=?', [oldId]);
+    exec('DELETE FROM times WHERE id=?', [oldId]);
     remap++;
   });
 
@@ -1828,14 +1827,38 @@ const UF_ESTADO = {
 };
 // Sufixo no nome do time → país
 const SUFIXO_PAIS = {
+  // América do Sul
   'ARG':'Argentina','PAR':'Paraguai','CHI':'Chile','URU':'Uruguai',
   'BOL':'Bolívia','COL':'Colômbia','PER':'Peru','VEN':'Venezuela',
-  'ECU':'Equador','MEX':'México','USA':'Estados Unidos','POR':'Portugal',
-  'ESP':'Espanha','ITA':'Itália','ENG':'Inglaterra','GER':'Alemanha',
-  'FRA':'França','NED':'Países Baixos','BEL':'Bélgica','SCO':'Escócia',
-  'CRO':'Croácia','SRB':'Sérvia','MOR':'Marrocos','EGY':'Egito',
-  'JPN':'Japão','KOR':'Coreia do Sul','SAU':'Arábia Saudita',
-  'UAE':'Emirados Árabes','MAR':'Marrocos','AUS':'Austrália'
+  'ECU':'Equador','EQU':'Equador','GUY':'Guiana','SUR':'Suriname',
+  'TRI':'Trinidad e Tobago',
+  // América Central e Norte
+  'MEX':'México','USA':'Estados Unidos','CRC':'Costa Rica','PAN':'Panamá',
+  'HON':'Honduras','GUA':'Guatemala','SLV':'El Salvador','CUB':'Cuba',
+  'HAI':'Haiti','JAM':'Jamaica','DOM':'República Dominicana',
+  // Europa
+  'POR':'Portugal','ESP':'Espanha','ITA':'Itália','ENG':'Inglaterra',
+  'GER':'Alemanha','FRA':'França','NED':'Países Baixos','BEL':'Bélgica',
+  'SCO':'Escócia','WAL':'País de Gales','IRL':'Irlanda','NIR':'Irlanda do Norte',
+  'CRO':'Croácia','SRB':'Sérvia','SVN':'Eslovênia','SVK':'Eslováquia',
+  'CZE':'Tchéquia','POL':'Polônia','HUN':'Hungria','ROU':'Romênia',
+  'BUL':'Bulgária','GRE':'Grécia','TUR':'Turquia','RUS':'Rússia',
+  'UKR':'Ucrânia','SUI':'Suíça','AUT':'Áustria','DEN':'Dinamarca',
+  'SWE':'Suécia','NOR':'Noruega','FIN':'Finlândia','ISL':'Islândia',
+  'ALB':'Albânia','BIH':'Bósnia','MKD':'Macedônia do Norte',
+  'MNE':'Montenegro','KOS':'Kosovo','EST':'Estônia','LAT':'Letônia',
+  'LTU':'Lituânia','LUX':'Luxemburgo','MLT':'Malta','CYP':'Chipre',
+  'GEO':'Geórgia','ARM':'Armênia','AZE':'Azerbaijão','KAZ':'Cazaquistão',
+  // África
+  'MOR':'Marrocos','MAR':'Marrocos','EGY':'Egito','TUN':'Tunísia',
+  'ALG':'Argélia','NGA':'Nigéria','GHA':'Gana','CIV':'Costa do Marfim',
+  'SEN':'Senegal','CMR':'Camarões','ZAF':'África do Sul','ANG':'Angola',
+  'MOZ':'Moçambique',
+  // Ásia e Oceania
+  'JPN':'Japão','KOR':'Coreia do Sul','CHN':'China','IND':'Índia',
+  'SAU':'Arábia Saudita','UAE':'Emirados Árabes','QAT':'Catar',
+  'IRN':'Irã','IRQ':'Iraque','SYR':'Síria','ISR':'Israel',
+  'AUS':'Austrália','NZL':'Nova Zelândia',
 };
 
 // Mapa direto: código → id fixo da competição no banco
@@ -1948,11 +1971,23 @@ function previewImport() {
 
 function detectarPaisPorSufixo(nome) {
   // Ex: "Boca Juniors-ARG" → { pais: 'Argentina', nomeLimpo: 'Boca Juniors' }
+  // Ex: "Barcelona-ESP" e "Barcelona-EQU" → nomes distintos preservados quando colidiriam
   const m = nome.match(/^(.+)-([A-Z]{2,3})$/);
   if (m) {
     const sufixo = m[2].toUpperCase();
     const pais = SUFIXO_PAIS[sufixo];
-    if (pais) return { pais, nomeLimpo: m[1].trim() };
+    if (pais) {
+      // Verificar se já existe um time com o nomeLimpo mas de país diferente
+      const nomeLimpo = m[1].trim();
+      const existente = query("SELECT pais FROM times WHERE nome=?", [nomeLimpo])[0];
+      if (existente && existente.pais !== pais && existente.pais !== 'Brasil') {
+        // Colisão de países: manter nome com sufixo para distinguir
+        return { pais, nomeLimpo: nome.trim() };
+      }
+      return { pais, nomeLimpo };
+    }
+    // Sufixo não mapeado: país genérico mas MANTÉM nome completo (com sufixo) para não colidir
+    return { pais: 'Outro', nomeLimpo: nome.trim() };
   }
   return { pais: 'Brasil', nomeLimpo: nome.trim() };
 }
