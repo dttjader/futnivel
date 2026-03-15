@@ -2072,8 +2072,12 @@ function detectarPaisPorSufixo(nome) {
     const nomeLimpo = m[1].trim();
 
     if (sufixo.length === 2) {
-      // Sempre estado brasileiro — remove sufixo do nome, vincula estado depois
-      return { pais: 'Brasil', nomeLimpo, sufixoEstado: sufixo };
+      if (UF_BRASIL.has(sufixo)) {
+        // Sigla de estado válida → remove sufixo do nome, vincula estado
+        return { pais: 'Brasil', nomeLimpo, sufixoEstado: sufixo };
+      }
+      // 2 letras mas não é sigla de estado (ex: GV, SJ, FC) → parte do nome, Brasil
+      return { pais: 'Brasil', nomeLimpo: nome.trim() };
     }
 
     // 3 letras → país estrangeiro
