@@ -155,6 +155,18 @@
         <label>Mín. jogos</label>
         <input type="number" id="r-min-jogos" value="1" min="1" style="width:70px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" oninput="carregarRanking()">
       </div>
+      <div class="form-group" style="margin:0">
+        <label>UF (estado)</label>
+        <select id="r-filtro-uf" onchange="carregarRanking()" style="padding:8px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Nº de anos</label>
+        <select id="r-filtro-anos" onchange="carregarRanking()" style="padding:8px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">
+          <option value="">Todos</option>
+        </select>
+      </div>
     </div>
     <div class="table-wrap" id="ranking-table"></div>
   </div>
@@ -1022,10 +1034,55 @@ function carregarRanking() {
     });
   }
 
+  // Contar anos distintos por time nas partidas filtradas
+  const anosPorTime = {};
+  partidas.forEach(p => {
+    if (!anosPorTime[p.time_casa_id]) anosPorTime[p.time_casa_id] = new Set();
+    if (!anosPorTime[p.time_fora_id]) anosPorTime[p.time_fora_id] = new Set();
+    anosPorTime[p.time_casa_id].add(p.ano);
+    anosPorTime[p.time_fora_id].add(p.ano);
+  });
+
+  const filtroUF = document.getElementById('r-filtro-uf')?.value || '';
+  const filtroAnos = parseInt(document.getElementById('r-filtro-anos')?.value) || 0;
+
   let ranked = Object.entries(stats)
-    .map(([id,s])=>({id,...s,media:s.j?s.pts/s.j:0,estado:estadoPorId[id]||null}))
-    .filter(r => r.j >= minJogos && (paisPorId[r.id] || 'Brasil') === 'Brasil')
+    .map(([id,s])=>{
+      const anos = anosPorTime[id] ? anosPorTime[id].size : 1;
+      return {...s, id, media:s.j?s.pts/s.j:0, estado:estadoPorId[id]||null, anos, mediaPorAno:s.pts/anos};
+    })
+    .filter(r =>
+      r.j >= minJogos &&
+      (paisPorId[r.id] || 'Brasil') === 'Brasil' &&
+      (!filtroUF || estadoPorId[r.id] === filtroUF) &&
+      (!filtroAnos || r.anos === filtroAnos)
+    )
     .sort((a,b)=>b.pts-a.pts);
+
+  // Popular selects de UF e Anos com os valores presentes no resultado atual (sem filtros de UF/Anos)
+  const todosRanked = Object.entries(stats)
+    .map(([id,s])=>{
+      const anos = anosPorTime[id] ? anosPorTime[id].size : 1;
+      return { id, estado: estadoPorId[id]||null, anos };
+    })
+    .filter(r => (paisPorId[r.id] || 'Brasil') === 'Brasil');
+
+  const selUF = document.getElementById('r-filtro-uf');
+  if (selUF) {
+    const ufsAtuais = new Set(selUF.innerHTML.match(/value="([^"]+)"/g)?.map(v => v.slice(7,-1)) || []);
+    const ufs = [...new Set(todosRanked.map(r => r.estado).filter(Boolean))].sort();
+    if (ufs.some(u => !ufsAtuais.has(u)) || ufsAtuais.size - 1 !== ufs.length) {
+      selUF.innerHTML = '<option value="">Todos</option>' + ufs.map(u => `<option value="${u}"${filtroUF===u?' selected':''}>${u}</option>`).join('');
+    }
+  }
+  const selAnos = document.getElementById('r-filtro-anos');
+  if (selAnos) {
+    const anosDisponiveis = [...new Set(todosRanked.map(r => r.anos))].sort((a,b)=>a-b);
+    const anosAtuais = new Set(selAnos.innerHTML.match(/value="([^"]+)"/g)?.map(v => v.slice(7,-1)) || []);
+    if (anosDisponiveis.some(a => !anosAtuais.has(String(a))) || anosAtuais.size - 1 !== anosDisponiveis.length) {
+      selAnos.innerHTML = '<option value="">Todos</option>' + anosDisponiveis.map(a => `<option value="${a}"${filtroAnos===a?' selected':''}>${a} ${a===1?'ano':'anos'}</option>`).join('');
+    }
+  }
 
   if(!ranked.length){
     document.getElementById('ranking-table').innerHTML=`<div class="empty-state"><div class="icon">🏆</div><p>Nenhuma partida no período selecionado.</p></div>`;
@@ -1052,11 +1109,13 @@ function carregarRanking() {
     <td style="text-align:center;color:var(--red)">${r.d}</td>
     <td style="text-align:center">${r.gp}</td><td style="text-align:center">${r.gc}</td>
     <td style="text-align:right"><span class="pts-badge ${r.pts<0?'neg':''}">${parseFloat(r.pts||0).toFixed(1)}</span></td>
+    <td style="text-align:center;color:var(--muted);font-size:12px">${r.anos}</td>
+    <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.mediaPorAno||0).toFixed(1)}</td>
     <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.media||0).toFixed(1)}</td>
   </tr>`).join('');
   document.getElementById('ranking-table').innerHTML=`
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${ranked.length} times · ${partidas.length} partidas${periodoLabel}</div>
-    <table><thead><tr><th>#</th><th>Time</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th style="text-align:right">Pts Total</th><th style="text-align:right">Pts/Jogo</th></tr></thead><tbody>${rows}</tbody></table>`;
+    <table><thead><tr><th>#</th><th>Time</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th style="text-align:right">Pts Total</th><th style="text-align:center">Anos</th><th style="text-align:right">Pts/Ano</th><th style="text-align:right">Pts/Jogo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ─────────────────────────────────────────
