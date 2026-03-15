@@ -239,6 +239,25 @@
       <div><h2>Times</h2><p>Cadastro e níveis anuais</p></div>
       <button class="btn btn-primary" onclick="toggleForm('form-time')">➕ Novo Time</button>
     </div>
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="flex:2;min-width:180px">
+        <label>Buscar</label>
+        <input type="text" id="t-busca" placeholder="🔍 Nome do time..." oninput="carregarTimes()" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>País</label>
+        <select id="t-filtro-pais" onchange="carregarTimes()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="t-filtro-estado" onchange="carregarTimes()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+    </div>
+
     <div id="form-time" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
       <p class="section-title">Cadastrar Time</p>
       <div class="form-grid">
@@ -994,16 +1013,17 @@ function carregarRanking() {
   });
 
   // Buscar pais de cada time para excluir internacionais do ranking
-  const paisPorId = {};
+  const paisPorId = {}, estadoPorId = {};
   if (Object.keys(stats).length) {
     const ids = Object.keys(stats).join(',');
-    query(`SELECT id, pais FROM times WHERE id IN (${ids})`).forEach(t => {
+    query(`SELECT id, pais, estado FROM times WHERE id IN (${ids})`).forEach(t => {
       paisPorId[t.id] = t.pais;
+      estadoPorId[t.id] = t.estado;
     });
   }
 
   let ranked = Object.entries(stats)
-    .map(([id,s])=>({id,...s,media:s.j?s.pts/s.j:0}))
+    .map(([id,s])=>({id,...s,media:s.j?s.pts/s.j:0,estado:estadoPorId[id]||null}))
     .filter(r => r.j >= minJogos && (paisPorId[r.id] || 'Brasil') === 'Brasil')
     .sort((a,b)=>b.pts-a.pts);
 
@@ -1025,7 +1045,7 @@ function carregarRanking() {
 
   const rows=ranked.map((r,i)=>`<tr>
     <td><span class="rank-num ${i<3?'top3':''}">${i+1}</span></td>
-    <td style="font-weight:600">${r.nome}</td>
+    <td style="font-weight:600">${r.nome}${r.estado ? '<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:5px">' + r.estado + '</span>' : ''}</td>
     <td style="text-align:center">${r.j}</td>
     <td style="text-align:center;color:var(--green)">${r.v}</td>
     <td style="text-align:center;color:var(--yellow)">${r.e}</td>
@@ -1578,8 +1598,31 @@ function reconsolidarAliases() {
 }
 
 function carregarTimes() {
-  const times=query(`SELECT t.id,t.nome,t.nome_curto,t.pais,t.estado,GROUP_CONCAT(tn.ano||':N'||tn.nivel,' | ') AS niveis FROM times t LEFT JOIN times_nivel tn ON tn.time_id=t.id GROUP BY t.id ORDER BY t.nome`);
-  if(!times.length){document.getElementById('times-table').innerHTML=`<div class="empty-state"><div class="icon">👥</div><p>Nenhum time cadastrado.</p></div>`;return;}
+  const todos = query(`SELECT t.id,t.nome,t.nome_curto,t.pais,t.estado,GROUP_CONCAT(tn.ano||':N'||tn.nivel,' | ') AS niveis FROM times t LEFT JOIN times_nivel tn ON tn.time_id=t.id GROUP BY t.id ORDER BY t.nome`);
+
+  // Popular selects de país e estado (só na primeira vez ou quando vazio)
+  const selPais = document.getElementById('t-filtro-pais');
+  const selEstado = document.getElementById('t-filtro-estado');
+  if (selPais && selPais.options.length <= 1) {
+    const paises = [...new Set(todos.map(t => t.pais).filter(Boolean))].sort();
+    selPais.innerHTML = '<option value="">Todos</option>' + paises.map(p => `<option value="${p}">${p}</option>`).join('');
+  }
+  if (selEstado && selEstado.options.length <= 1) {
+    const estados = [...new Set(todos.map(t => t.estado).filter(Boolean))].sort();
+    selEstado.innerHTML = '<option value="">Todos</option>' + estados.map(e => `<option value="${e}">${e}</option>`).join('');
+  }
+
+  // Aplicar filtros
+  const busca = (document.getElementById('t-busca')?.value || '').toLowerCase();
+  const filtroPais = selPais?.value || '';
+  const filtroEstado = selEstado?.value || '';
+  const times = todos.filter(t =>
+    (!busca || t.nome.toLowerCase().includes(busca)) &&
+    (!filtroPais || t.pais === filtroPais) &&
+    (!filtroEstado || t.estado === filtroEstado)
+  );
+
+  if(!times.length){document.getElementById('times-table').innerHTML=`<div class="empty-state"><div class="icon">👥</div><p>Nenhum time encontrado.</p></div>`;return;}
   document.getElementById('times-table').innerHTML=`<table><thead><tr><th>Nome</th><th>Sigla</th><th>País</th><th>Estado</th><th>Níveis por Ano</th><th></th></tr></thead><tbody>
     ${times.map(t=>`<tr>
       <td style="font-weight:600">${t.nome}</td>
