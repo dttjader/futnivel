@@ -1112,7 +1112,7 @@ function carregarRanking() {
     <td style="text-align:center;color:var(--red)">${r.d}</td>
     <td style="text-align:center">${r.gp}</td><td style="text-align:center">${r.gc}</td>
     <td style="text-align:right"><span class="pts-badge ${r.pts<0?'neg':''}">${parseFloat(r.pts||0).toFixed(1)}</span></td>
-    <td style="text-align:center;color:var(--muted);font-size:12px">${r.anos}${r.ultimoAno && r.ultimoAno < anoMaxPeriodo ? '<span title="Último ano: '+r.ultimoAno+'" style="margin-left:4px;color:var(--danger);font-size:10px">até '+r.ultimoAno+'</span>' : ''}</td>
+    <td style="text-align:center;color:var(--muted);font-size:12px">${r.anos}${r.ultimoAno && r.ultimoAno < anoMaxPeriodo ? '<span title="Último ano: '+r.ultimoAno+'" style="margin-left:3px;color:var(--danger);font-size:10px">(' + r.ultimoAno + ')</span>' : ''}</td>
     <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.mediaPorAno||0).toFixed(1)}</td>
     <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.media||0).toFixed(1)}</td>
   </tr>`).join('');
