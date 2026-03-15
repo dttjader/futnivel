@@ -1034,6 +1034,9 @@ function carregarRanking() {
     });
   }
 
+  // Ano máximo no período filtrado — para saber se o time está "ativo" até o fim
+  const anoMaxPeriodo = partidas.length ? Math.max(...partidas.map(p => p.ano)) : 0;
+
   // Contar anos distintos por time nas partidas filtradas
   const anosPorTime = {};
   partidas.forEach(p => {
@@ -1049,8 +1052,10 @@ function carregarRanking() {
   // 1. Ranking completo (sem filtros de UF/anos) → atribui posição real
   const rankingCompleto = Object.entries(stats)
     .map(([id,s])=>{
-      const anos = anosPorTime[id] ? anosPorTime[id].size : 1;
-      return {...s, id, media:s.j?s.pts/s.j:0, estado:estadoPorId[id]||null, anos, mediaPorAno:s.pts/anos};
+      const anosSet = anosPorTime[id] || new Set();
+      const anos = anosSet.size || 1;
+      const ultimoAno = anosSet.size ? Math.max(...anosSet) : null;
+      return {...s, id, media:s.j?s.pts/s.j:0, estado:estadoPorId[id]||null, anos, mediaPorAno:s.pts/anos, ultimoAno};
     })
     .filter(r => r.j >= minJogos && (paisPorId[r.id] || 'Brasil') === 'Brasil')
     .sort((a,b)=>b.pts-a.pts)
@@ -1107,7 +1112,7 @@ function carregarRanking() {
     <td style="text-align:center;color:var(--red)">${r.d}</td>
     <td style="text-align:center">${r.gp}</td><td style="text-align:center">${r.gc}</td>
     <td style="text-align:right"><span class="pts-badge ${r.pts<0?'neg':''}">${parseFloat(r.pts||0).toFixed(1)}</span></td>
-    <td style="text-align:center;color:var(--muted);font-size:12px">${r.anos}</td>
+    <td style="text-align:center;color:var(--muted);font-size:12px">${r.anos}${r.ultimoAno && r.ultimoAno < anoMaxPeriodo ? '<span title="Último ano: '+r.ultimoAno+'" style="margin-left:4px;color:var(--danger);font-size:10px">até '+r.ultimoAno+'</span>' : ''}</td>
     <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.mediaPorAno||0).toFixed(1)}</td>
     <td style="text-align:right;color:var(--muted);font-size:12px">${parseFloat(r.media||0).toFixed(1)}</td>
   </tr>`).join('');
