@@ -1591,7 +1591,20 @@ function importarAliasesArquivo(input) {
     input.value = '';
     const msg = `✅ ${ok} aliases importados.` + (erros.length ? ` ⚠️ ${erros.length} erros.` : '');
     toast(msg);
-    if (erros.length) console.warn('Erros na importação de aliases:', erros);
+    if (erros.length) {
+      const lista = erros.map((e,i) => `<tr><td style="color:var(--muted);font-size:12px;padding-right:12px">#${i+1}</td><td style="font-size:13px">${e}</td></tr>`).join('');
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <strong>⚠️ Erros na importação (${erros.length})</strong>
+          <button class="btn" onclick="this.closest('[style*=fixed]').remove()">✕ Fechar</button>
+        </div>
+        <table style="width:100%"><tbody>${lista}</tbody></table>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    }
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -1599,8 +1612,8 @@ function importarAliasesArquivo(input) {
 function carregarAliases() {
   const busca = (document.getElementById('al-busca')?.value || '').toLowerCase();
   const rows = query(`
-    SELECT a.id, a.alias, t.id AS time_id, t.nome AS time_nome
-    FROM times_alias a JOIN times t ON t.id=a.time_id
+    SELECT a.id, a.alias, a.time_id, COALESCE(t.nome, '⚠️ Time não encontrado (id '||a.time_id||')') AS time_nome
+    FROM times_alias a LEFT JOIN times t ON t.id=a.time_id
     ORDER BY a.alias
   `);
   const filtrados = busca ? rows.filter(r =>
