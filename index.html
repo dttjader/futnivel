@@ -336,6 +336,9 @@
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
       <input type="text" id="al-busca" placeholder="🔍 Filtrar aliases..." oninput="carregarAliases()" style="flex:1;min-width:200px">
       <button class="btn btn-primary" onclick="reconsolidarAliases()" title="Remapear partidas históricas e recalcular pontos">🔄 Reconsolidar partidas</button>
+      <button class="btn" onclick="exportarAliases()" title="Exportar aliases como TSV">📤 Exportar</button>
+      <button class="btn" onclick="document.getElementById('al-import-file').click()" title="Importar aliases de TSV">📥 Importar</button>
+      <input type="file" id="al-import-file" accept=".tsv,.txt,.csv" style="display:none" onchange="importarAliasesArquivo(this)">
     </div>
 
     <div id="aliases-table"></div>
@@ -702,7 +705,7 @@ function calcPontuacao(golsCasa, golsFora, nivelCasa, nivelFora, mando='normal',
 let DB = null, SQL = null;
 let TIMES = [], COMPS = [];
 
-const DB_SEED = {"times":[],"times_nivel":[],"competicoes":[{"id":1,"nome":"Brasileirão Série A","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":2,"nome":"Brasileirão Série B","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":3,"nome":"Brasileirão Série C","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":4,"nome":"Brasileirão Série D","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":5,"nome":"Copa do Brasil","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":6,"nome":"Copa Libertadores","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":7,"nome":"Copa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":8,"nome":"Recopa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":9,"nome":"Campeonato Paulista","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":10,"nome":"Campeonato Carioca","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":11,"nome":"Campeonato Mineiro","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":12,"nome":"Campeonato Gaúcho","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":13,"nome":"Campeonato Sul-Rio-Grandense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":14,"nome":"Campeonato Paranaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":15,"nome":"Campeonato Baiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":16,"nome":"Campeonato Pernambucano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":17,"nome":"Campeonato Cearense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":18,"nome":"Campeonato Goiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":19,"nome":"Campeonato Alagoano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":20,"nome":"Campeonato Amazonense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":21,"nome":"Campeonato Amapaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":22,"nome":"Campeonato Brasiliense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":23,"nome":"Campeonato Capixaba","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":24,"nome":"Campeonato Maranhense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":25,"nome":"Campeonato Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":26,"nome":"Campeonato Sul-Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":27,"nome":"Campeonato Paraense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":28,"nome":"Campeonato Paraibano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":29,"nome":"Campeonato Piauiense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":30,"nome":"Campeonato Potiguar","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":31,"nome":"Campeonato Rondoniense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":32,"nome":"Campeonato Roraimense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":33,"nome":"Campeonato Sergipano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":34,"nome":"Campeonato Tocantinense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":35,"nome":"Campeonato Acreano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":36,"nome":"Amistoso","tipo":"amistoso","pais":null,"multiplicador":0.5},{"id":37,"nome":"Mundial de Clubes","tipo":"mundial","multiplicador":1.0},{"id":38,"nome":"Campeonato Catarinense","tipo":"estadual","multiplicador":1.0},{"id":39,"nome":"Primeira Liga","tipo":"nacional","pais":"Brasil","multiplicador":1.0}],"partidas":[],"config_pontuacao":[{"chave":"pts_vitoria_base","valor":100.0,"descricao":"Pontos base por vitória (mesmo nível)"},{"chave":"pts_vitoria_bonus_d1","valor":50.0,"descricao":"Bônus vitória com 1 nível de desvantagem (+50)"},{"chave":"pts_vitoria_bonus_d2","valor":125.0,"descricao":"Bônus vitória com 2 níveis de desvantagem (+125)"},{"chave":"pts_vitoria_bonus_d3","valor":250.0,"descricao":"Bônus vitória com 3 níveis de desvantagem (+250)"},{"chave":"pts_vitoria_fator_d1","valor":0.5,"descricao":"Fator quando vencedor tem 1 nível de vantagem"},{"chave":"pts_vitoria_fator_d2","valor":0.25,"descricao":"Fator quando vencedor tem 2 níveis de vantagem"},{"chave":"pts_vitoria_fator_d3","valor":0.0,"descricao":"Fator quando vencedor tem 3 níveis de vantagem"},{"chave":"pts_derrota_pen_d1","valor":-50.0,"descricao":"Penalidade derrota com 1 nível de desvantagem"},{"chave":"pts_derrota_pen_d2","valor":-125.0,"descricao":"Penalidade derrota com 2 níveis de desvantagem"},{"chave":"pts_derrota_pen_d3","valor":-200.0,"descricao":"Penalidade derrota com 3 níveis de desvantagem"},{"chave":"pts_empate_base","valor":33.0,"descricao":"Pontos base por empate (mesmo nível, ambos)"},{"chave":"pts_empate_bonus_fator","valor":0.3333333333,"descricao":"Fator bônus empate por nível (1/3)"},{"chave":"pts_empate_pen_nivel","valor":-11.0,"descricao":"Penalidade de empate por nível (time mais forte)"},{"chave":"mult_mando_casa","valor":1.0,"descricao":"Multiplicador jogando em casa"},{"chave":"mult_mando_fora","valor":1.2,"descricao":"Multiplicador jogando fora de casa (+20%)"},{"chave":"mult_mando_neutro","valor":1.0,"descricao":"Multiplicador campo neutro"}]};
+const DB_SEED = {"times":[],"times_nivel":[],"competicoes":[{"id":1,"nome":"Brasileirão Série A","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":2,"nome":"Brasileirão Série B","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":3,"nome":"Brasileirão Série C","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":4,"nome":"Brasileirão Série D","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":5,"nome":"Copa do Brasil","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":6,"nome":"Copa Libertadores","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":7,"nome":"Copa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":8,"nome":"Recopa Sul-Americana","tipo":"continental","pais":"CONMEBOL","multiplicador":1.0},{"id":9,"nome":"Campeonato Paulista","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":10,"nome":"Campeonato Carioca","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":11,"nome":"Campeonato Mineiro","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":12,"nome":"Campeonato Gaúcho","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":13,"nome":"Campeonato Sul-Rio-Grandense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":14,"nome":"Campeonato Paranaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":15,"nome":"Campeonato Baiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":16,"nome":"Campeonato Pernambucano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":17,"nome":"Campeonato Cearense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":18,"nome":"Campeonato Goiano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":19,"nome":"Campeonato Alagoano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":20,"nome":"Campeonato Amazonense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":21,"nome":"Campeonato Amapaense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":22,"nome":"Campeonato Brasiliense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":23,"nome":"Campeonato Capixaba","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":24,"nome":"Campeonato Maranhense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":25,"nome":"Campeonato Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":26,"nome":"Campeonato Sul-Mato-Grossense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":27,"nome":"Campeonato Paraense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":28,"nome":"Campeonato Paraibano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":29,"nome":"Campeonato Piauiense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":30,"nome":"Campeonato Potiguar","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":31,"nome":"Campeonato Rondoniense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":32,"nome":"Campeonato Roraimense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":33,"nome":"Campeonato Sergipano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":34,"nome":"Campeonato Tocantinense","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":35,"nome":"Campeonato Acreano","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":36,"nome":"Amistoso","tipo":"amistoso","pais":null,"multiplicador":0.5},{"id":37,"nome":"Mundial de Clubes","tipo":"mundial","multiplicador":1.0},{"id":38,"nome":"Campeonato Catarinense","tipo":"estadual","multiplicador":1.0},{"id":39,"nome":"Primeira Liga","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":40,"nome":"Copa Verde","tipo":"nacional","pais":"Brasil","multiplicador":1.0},{"id":41,"nome":"Copa do Nordeste","tipo":"nacional","pais":"Brasil","multiplicador":1.0}],"partidas":[],"config_pontuacao":[{"chave":"pts_vitoria_base","valor":100.0,"descricao":"Pontos base por vitória (mesmo nível)"},{"chave":"pts_vitoria_bonus_d1","valor":50.0,"descricao":"Bônus vitória com 1 nível de desvantagem (+50)"},{"chave":"pts_vitoria_bonus_d2","valor":125.0,"descricao":"Bônus vitória com 2 níveis de desvantagem (+125)"},{"chave":"pts_vitoria_bonus_d3","valor":250.0,"descricao":"Bônus vitória com 3 níveis de desvantagem (+250)"},{"chave":"pts_vitoria_fator_d1","valor":0.5,"descricao":"Fator quando vencedor tem 1 nível de vantagem"},{"chave":"pts_vitoria_fator_d2","valor":0.25,"descricao":"Fator quando vencedor tem 2 níveis de vantagem"},{"chave":"pts_vitoria_fator_d3","valor":0.0,"descricao":"Fator quando vencedor tem 3 níveis de vantagem"},{"chave":"pts_derrota_pen_d1","valor":-50.0,"descricao":"Penalidade derrota com 1 nível de desvantagem"},{"chave":"pts_derrota_pen_d2","valor":-125.0,"descricao":"Penalidade derrota com 2 níveis de desvantagem"},{"chave":"pts_derrota_pen_d3","valor":-200.0,"descricao":"Penalidade derrota com 3 níveis de desvantagem"},{"chave":"pts_empate_base","valor":33.0,"descricao":"Pontos base por empate (mesmo nível, ambos)"},{"chave":"pts_empate_bonus_fator","valor":0.3333333333,"descricao":"Fator bônus empate por nível (1/3)"},{"chave":"pts_empate_pen_nivel","valor":-11.0,"descricao":"Penalidade de empate por nível (time mais forte)"},{"chave":"mult_mando_casa","valor":1.0,"descricao":"Multiplicador jogando em casa"},{"chave":"mult_mando_fora","valor":1.2,"descricao":"Multiplicador jogando fora de casa (+20%)"},{"chave":"mult_mando_neutro","valor":1.0,"descricao":"Multiplicador campo neutro"}]};
 
 async function initSQLite() {
   const script = document.createElement('script');
@@ -719,6 +722,8 @@ async function initSQLite() {
       const n = loaded.exec("SELECT COUNT(*) FROM partidas")[0]?.values[0][0] || 0;
       if (n >= 0) {
         DB = loaded;
+        // Migração: adicionar colunas novas em tabelas existentes (ALTER TABLE ignora se já existe via try/catch)
+        try { DB.run("ALTER TABLE partidas ADD COLUMN comp_sigla TEXT"); } catch(e) {}
         // Migração: criar tabelas novas que podem não existir em bancos antigos
         // Migração: limpar estado de times internacionais (país != 'Brasil')
         DB.run("UPDATE times SET estado=NULL WHERE pais != 'Brasil' AND estado IS NOT NULL");
@@ -748,6 +753,8 @@ async function initSQLite() {
         DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (36,'Amistoso','amistoso',null,0.5)");
         DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (37,'Mundial de Clubes','mundial','FIFA',1.0)");
         DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (39,'Primeira Liga','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (40,'Copa Verde','nacional','Brasil',1.0)");
+        DB.run("INSERT OR IGNORE INTO competicoes (id,nome,tipo,pais,multiplicador) VALUES (41,'Copa do Nordeste','nacional','Brasil',1.0)");
         // Recalcular pts de todas as partidas com os novos parâmetros
         const partidas = DB.exec("SELECT p.id, p.gols_casa, p.gols_fora, p.nivel_casa, p.nivel_fora, COALESCE(c.multiplicador,1.0) AS mc FROM partidas p LEFT JOIN competicoes c ON c.id=p.competicao_id");
         if (partidas.length) {
@@ -826,7 +833,7 @@ function applySchema() {
     CREATE TABLE IF NOT EXISTS times (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE, nome_curto TEXT, pais TEXT DEFAULT 'Brasil', estado TEXT);
     CREATE TABLE IF NOT EXISTS times_nivel (id INTEGER PRIMARY KEY AUTOINCREMENT, time_id INTEGER NOT NULL REFERENCES times(id), ano INTEGER NOT NULL, nivel INTEGER NOT NULL, divisao TEXT, UNIQUE(time_id,ano));
     CREATE TABLE IF NOT EXISTS competicoes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, tipo TEXT NOT NULL, pais TEXT, multiplicador REAL NOT NULL DEFAULT 1.0);
-    CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, ano INTEGER NOT NULL, competicao_id INTEGER REFERENCES competicoes(id), fase TEXT, time_casa_id INTEGER NOT NULL REFERENCES times(id), time_fora_id INTEGER NOT NULL REFERENCES times(id), gols_casa INTEGER NOT NULL, gols_fora INTEGER NOT NULL, nivel_casa INTEGER, nivel_fora INTEGER, pts_casa REAL, pts_fora REAL, observacoes TEXT);
+    CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, ano INTEGER NOT NULL, competicao_id INTEGER REFERENCES competicoes(id), comp_sigla TEXT, fase TEXT, time_casa_id INTEGER NOT NULL REFERENCES times(id), time_fora_id INTEGER NOT NULL REFERENCES times(id), gols_casa INTEGER NOT NULL, gols_fora INTEGER NOT NULL, nivel_casa INTEGER, nivel_fora INTEGER, pts_casa REAL, pts_fora REAL, observacoes TEXT);
     CREATE TABLE IF NOT EXISTS times_alias (id INTEGER PRIMARY KEY AUTOINCREMENT, alias TEXT NOT NULL UNIQUE, time_id INTEGER NOT NULL REFERENCES times(id));
     CREATE TABLE IF NOT EXISTS config_pontuacao (id INTEGER PRIMARY KEY AUTOINCREMENT, chave TEXT NOT NULL UNIQUE, valor REAL NOT NULL, descricao TEXT);
     INSERT OR IGNORE INTO config_pontuacao (chave, valor, descricao) VALUES
@@ -978,7 +985,7 @@ function carregarDashboard() {
   document.getElementById('d-partidas').textContent = query("SELECT COUNT(*) as n FROM partidas")[0]?.n ?? 0;
   document.getElementById('d-comps').textContent = query("SELECT COUNT(DISTINCT competicao_id) as n FROM partidas WHERE competicao_id IS NOT NULL")[0]?.n ?? 0;
   document.getElementById('d-anos').textContent = query("SELECT COUNT(DISTINCT ano) as n FROM partidas")[0]?.n ?? 0;
-  const rows = query(`SELECT p.data, tc.nome AS casa, p.gols_casa, p.gols_fora, tf.nome AS fora, p.nivel_casa, p.nivel_fora, p.pts_casa, p.pts_fora, COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id ORDER BY p.data DESC LIMIT 8`);
+  const rows = query(`SELECT p.data, tc.nome AS casa, p.gols_casa, p.gols_fora, tf.nome AS fora, p.nivel_casa, p.nivel_fora, p.pts_casa, p.pts_fora, COALESCE(c.nome, p.comp_sigla, '—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id ORDER BY p.data DESC LIMIT 8`);
   document.getElementById('dash-partidas').innerHTML = renderPartidasTable(rows);
 }
 
@@ -1209,7 +1216,7 @@ function confirmarEditarComp(partidaId) {
 function carregarPartidas() {
   const tid=document.getElementById('f-time')?.value, ano=document.getElementById('f-ano')?.value;
   const fComp=document.getElementById('f-comp')?.value || '';
-  let q=`SELECT p.id,p.data,p.competicao_id,tc.nome AS casa,p.gols_casa,p.gols_fora,tf.nome AS fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE 1=1`;
+  let q=`SELECT p.id,p.data,p.competicao_id,tc.nome AS casa,p.gols_casa,p.gols_fora,tf.nome AS fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,COALESCE(c.nome, p.comp_sigla, '—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE 1=1`;
   const params=[];
   if(tid){q+=' AND (p.time_casa_id=? OR p.time_fora_id=?)';params.push(tid,tid);}
   if(ano){q+=' AND p.ano=?';params.push(parseInt(ano));}
@@ -1325,7 +1332,7 @@ function carregarHistorico() {
 
   const partidas = query(`
     SELECT p.*, tc.nome AS casa_nome, tf.nome AS fora_nome,
-           COALESCE(c.nome,'—') AS comp_nome
+           COALESCE(c.nome, p.comp_sigla, '—') AS comp_nome
     FROM partidas p
     JOIN times tc ON tc.id=p.time_casa_id
     JOIN times tf ON tf.id=p.time_fora_id
@@ -1548,6 +1555,47 @@ function carregarH2H() {
 // ═══════════════════════════════════════════════════════
 // ALIASES
 // ═══════════════════════════════════════════════════════
+
+function exportarAliases() {
+  const aliases = query('SELECT a.alias, t.nome AS time_nome FROM times_alias a JOIN times t ON t.id=a.time_id ORDER BY a.alias');
+  if (!aliases.length) return toast('Nenhum alias para exportar.', true);
+  const tsv = 'alias\ttime_principal\n' + aliases.map(a => `${a.alias}\t${a.time_nome}`).join('\n');
+  const blob = new Blob([tsv], {type: 'text/tab-separated-values;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'aliases.tsv';
+  a.click(); URL.revokeObjectURL(url);
+  toast(`✅ ${aliases.length} aliases exportados.`);
+}
+
+function importarAliasesArquivo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const texto = e.target.result.replace(/^\uFEFF/, '');
+    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('alias\t'));
+    let ok = 0, erros = [];
+    linhas.forEach((linha, i) => {
+      const [alias, timeNome] = linha.split('\t').map(s => s?.trim());
+      if (!alias || !timeNome) { erros.push(`Linha ${i+2}: incompleta`); return; }
+      const time = query('SELECT id FROM times WHERE nome=?', [timeNome])[0];
+      if (!time) { erros.push(`Linha ${i+2}: time "${timeNome}" não encontrado`); return; }
+      try {
+        exec('INSERT OR IGNORE INTO times_alias (alias, time_id) VALUES (?,?)', [alias, time.id]);
+        ok++;
+      } catch(e) { erros.push(`Linha ${i+2}: ${e.message}`); }
+    });
+    saveDB();
+    carregarAliases();
+    input.value = '';
+    const msg = `✅ ${ok} aliases importados.` + (erros.length ? ` ⚠️ ${erros.length} erros.` : '');
+    toast(msg);
+    if (erros.length) console.warn('Erros na importação de aliases:', erros);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
 function carregarAliases() {
   const busca = (document.getElementById('al-busca')?.value || '').toLowerCase();
   const rows = query(`
@@ -2053,7 +2101,7 @@ const SERIE_NIVEL = {'A':1,'B':2,'C':3,'D':4};
 // Nível baseado no maior campeonato disputado na partida
 // M/MUN/R/RCP/S/SUD/L/LIB/A = N1, B = N2, C = N3, resto = N4
 const UF_NIVEL = {
-  'A':1,'L':1,'LIB':1,'S':1,'SUD':1,'R':1,'RCP':1,'M':1,'MUN':1,'PL':1,
+  'A':1,'L':1,'LIB':1,'S':1,'SUD':1,'R':1,'RCP':1,'M':1,'MUN':1,'PL':1,'CV':1,'CN':1,
   'B':2, 'C':3
 };
 // UF → estado brasileiro (para vincular o time ao campeonato estadual)
@@ -2117,6 +2165,10 @@ const CODIGO_COMP_ID = {
   'M':37, 'MUN':37,
   // Primeira Liga
   'PL':39,
+  // Copa Verde
+  'CV':40,
+  // Copa do Nordeste
+  'CN':41, 'NORD':41,
   // Amistoso
   'AMI':36, 'AMISTOSO':36,
   // Estaduais por UF
@@ -2385,8 +2437,8 @@ function executarImport() {
         }
         const nc = resolveNivel(casaId,ano), nf = resolveNivel(foraId,ano);
         const r = calcPontuacaoV2(p.gols_casa,p.gols_fora,nc,nf,mando,mc,cfg);
-        exec("INSERT INTO partidas (data,ano,competicao_id,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-          [`${ano}-01-01`,ano,compId,casaId,foraId,p.gols_casa,p.gols_fora,nc,nf,r.ptsCasa,r.ptsFora]);
+        exec("INSERT INTO partidas (data,ano,competicao_id,comp_sigla,time_casa_id,time_fora_id,gols_casa,gols_fora,nivel_casa,nivel_fora,pts_casa,pts_fora) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+          [`${ano}-01-01`,ano,compId,p.uf,casaId,foraId,p.gols_casa,p.gols_fora,nc,nf,r.ptsCasa,r.ptsFora]);
         ok++;
       } catch(e) { fail++; console.error(e,p); }
     });
@@ -2625,7 +2677,7 @@ function zerarBanco() {
   exec('PRAGMA foreign_keys = OFF');
   exec('DELETE FROM partidas');
   exec('DELETE FROM times_nivel');
-  exec('DELETE FROM times_alias');
+  // times_alias é preservado intencionalmente ao zerar (para reimportar sem recriar aliases)
   exec('DELETE FROM times');
   exec('PRAGMA foreign_keys = ON');
   saveDB();
