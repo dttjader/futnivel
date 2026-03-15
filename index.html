@@ -202,6 +202,7 @@
     <div class="filter-bar">
       <div class="form-group"><label>Time</label><select id="f-time" onchange="carregarPartidas()"><option value="">Todos</option></select></div>
       <div class="form-group"><label>Ano</label><input type="number" id="f-ano" placeholder="ex: 2024" style="width:110px" oninput="carregarPartidas()"></div>
+      <div class="form-group"><label>Competição</label><select id="f-comp" onchange="carregarPartidas()"><option value="">Todas</option><option value="NULL">Sem competição</option></select></div>
     </div>
     <div class="table-wrap" id="partidas-table"></div>
   </div>
@@ -1146,19 +1147,86 @@ function renderPartidasTable(rows) {
       <td style="text-align:right"><span class="pts-badge ${pc<0?'neg':''}" style="font-size:12px">${pc>=0?'+':''}${parseFloat(pc||0).toFixed(1)}</span></td>
       <td><span class="pts-badge ${pf<0?'neg':''}" style="font-size:12px">${pf>=0?'+':''}${parseFloat(pf||0).toFixed(1)}</span></td>
       <td style="color:var(--muted);font-size:12px">${r.comp||'—'}</td>
-      <td><button onclick="excluirPartida(${r.id}, ${JSON.stringify(desc)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;border-radius:4px;transition:color 0.15s" title="Excluir partida" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
+      <td style="white-space:nowrap">
+        <button onclick="editarCompPartida(${r.id}, ${r.competicao_id||'null'})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px;border-radius:4px;transition:color 0.15s" title="Alterar competição" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🏆</button>
+        <button onclick="excluirPartida(${r.id}, ${JSON.stringify(desc)})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;border-radius:4px;transition:color 0.15s" title="Excluir partida" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='var(--muted)'">🗑</button></td>
     </tr>`;
   }).join('');
   return `<table><thead><tr><th>Data</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th style="text-align:right">Pts Casa</th><th>Pts Fora</th><th>Competição</th><th></th></tr></thead><tbody>${trs}</tbody></table>`;
 }
 
+
+function editarCompPartida(partidaId, compAtualId) {
+  const comps = query('SELECT id, nome FROM competicoes ORDER BY nome');
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+  const opts = '<option value="">— Sem competição —</option>' +
+    comps.map(c => `<option value="${c.id}" ${c.id == compAtualId ? 'selected' : ''}>${c.nome}</option>`).join('');
+
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;min-width:320px;max-width:90vw">
+      <p class="section-title" style="margin-bottom:16px">🏆 Alterar Competição</p>
+      <div class="form-group">
+        <label>Competição</label>
+        <select id="modal-comp-sel" style="width:100%">${opts}</select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button class="btn" onclick="this.closest('[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarEditarComp(${partidaId})">💾 Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function confirmarEditarComp(partidaId) {
+  const sel = document.getElementById('modal-comp-sel');
+  const novoCompId = sel.value ? parseInt(sel.value) : null;
+
+  // Recalcular pontos com nova competição
+  const p = query('SELECT * FROM partidas WHERE id=?', [partidaId])[0];
+  if (!p) return;
+  let mc = 1.0;
+  if (novoCompId) {
+    const c = query('SELECT multiplicador FROM competicoes WHERE id=?', [novoCompId])[0];
+    if (c) mc = c.multiplicador;
+  }
+  const cfg = getCfg();
+  const nc = resolveNivel(p.time_casa_id, p.ano, p.nivel_casa);
+  const nf = resolveNivel(p.time_fora_id, p.ano, p.nivel_fora);
+  const r = calcPontuacaoV2(p.gols_casa, p.gols_fora, nc, nf, 'casa', mc, cfg);
+
+  exec('UPDATE partidas SET competicao_id=?, pts_casa=?, pts_fora=? WHERE id=?',
+    [novoCompId, r.ptsCasa, r.ptsFora, partidaId]);
+  saveDB();
+
+  document.querySelector('[style*="position:fixed"]')?.remove();
+  carregarPartidas();
+  toast('✅ Competição atualizada.');
+}
+
 function carregarPartidas() {
   const tid=document.getElementById('f-time')?.value, ano=document.getElementById('f-ano')?.value;
-  let q=`SELECT p.id,p.data,tc.nome AS casa,p.gols_casa,p.gols_fora,tf.nome AS fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE 1=1`;
+  const fComp=document.getElementById('f-comp')?.value || '';
+  let q=`SELECT p.id,p.data,p.competicao_id,tc.nome AS casa,p.gols_casa,p.gols_fora,tf.nome AS fora,p.nivel_casa,p.nivel_fora,p.pts_casa,p.pts_fora,COALESCE(c.nome,'—') AS comp FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE 1=1`;
   const params=[];
   if(tid){q+=' AND (p.time_casa_id=? OR p.time_fora_id=?)';params.push(tid,tid);}
   if(ano){q+=' AND p.ano=?';params.push(parseInt(ano));}
-  q+=' ORDER BY p.data DESC LIMIT 60';
+  if(fComp==='NULL'){q+=' AND p.competicao_id IS NULL';}
+  else if(fComp){q+=' AND p.competicao_id=?';params.push(parseInt(fComp));}
+  q+=' ORDER BY p.data DESC LIMIT 200';
+  // Popular select de competições se ainda não foi feito
+  const selComp = document.getElementById('f-comp');
+  if (selComp && selComp.options.length <= 2) {
+    const comps = query('SELECT id, nome FROM competicoes ORDER BY nome');
+    comps.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.nome;
+      if (String(c.id) === fComp) opt.selected = true;
+      selComp.appendChild(opt);
+    });
+  }
   document.getElementById('partidas-table').innerHTML=renderPartidasTable(query(q,params));
 }
 
@@ -2047,6 +2115,8 @@ const CODIGO_COMP_ID = {
   'S':7, 'SUD':7,
   'R':8, 'RCP':8,
   'M':37, 'MUN':37,
+  // Primeira Liga
+  'PL':39,
   // Amistoso
   'AMI':36, 'AMISTOSO':36,
   // Estaduais por UF
