@@ -1992,6 +1992,26 @@ function handleDrop(event, targetId) {
   reader.readAsText(file, 'UTF-8');
 }
 
+let _ultimosErrosImport = [];
+
+function verErrosImport() {
+  if (!_ultimosErrosImport.length) return;
+  const lista = _ultimosErrosImport.map((e,i) => `<tr><td style="color:var(--muted);font-size:12px;padding-right:12px">#${i+1}</td><td style="font-size:13px">${e}</td></tr>`).join('');
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <strong>⚠️ Erros de formato (${_ultimosErrosImport.length})</strong>
+        <button class="btn" onclick="this.closest('[style*=fixed]').remove()">✕ Fechar</button>
+      </div>
+      <table style="width:100%"><tbody>${lista}</tbody></table>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)">Estas linhas foram ignoradas na importação. Corrija o arquivo e reimporte.</p>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 function parseTSVPartidas(texto) {
   // Remove BOM se presente
   const clean = texto.replace(/^\uFEFF/, '');
@@ -2017,10 +2037,11 @@ function previewImport() {
   const texto = document.getElementById('imp-texto').value;
   if (!texto.trim()) { document.getElementById('imp-preview').style.display='none'; return; }
   const {partidas, erros, nDup} = parseTSVPartidas(texto);
+  _ultimosErrosImport = erros; // guardar para exibição
   let statusTxt = `${partidas.length} partidas encontradas`;
-  if (erros.length) statusTxt += ` · ${erros.length} erros de formato`;
+  if (erros.length) statusTxt += ` · <span style="color:var(--danger);cursor:pointer;text-decoration:underline" onclick="verErrosImport()">⚠️ ${erros.length} erros de formato</span>`;
   if (nDup) statusTxt += ` · ⚠️ ${nDup} duplicatas no arquivo`;
-  document.getElementById('imp-status').textContent = statusTxt;
+  document.getElementById('imp-status').innerHTML = statusTxt;
   if (!partidas.length) { document.getElementById('imp-preview').style.display='none'; return; }
   const rows = partidas.slice(0,20).map(p => {
     const res = p.gols_casa>p.gols_fora?'🏠':p.gols_casa<p.gols_fora?'🚌':'🤝';
@@ -2132,7 +2153,7 @@ function executarImport() {
   document.getElementById('btn-importar').disabled = true;
   document.getElementById('btn-importar').textContent = '⏳ Importando...';
   document.getElementById('imp-progresso').style.display = 'block';
-  document.getElementById('imp-status').textContent = '';
+  document.getElementById('imp-status').innerHTML = '';
 
   function atualizarBarra() {
     const pct = total > 0 ? Math.round((offset / total) * 100) : 0;
@@ -2185,7 +2206,7 @@ function executarImport() {
       document.getElementById('imp-barra').style.width = '0%';
       document.getElementById('imp-texto').value = '';
       document.getElementById('imp-preview').style.display = 'none';
-      document.getElementById('imp-status').textContent = '';
+      document.getElementById('imp-status').innerHTML = '';
       // Registrar pendentes para revisão
       const cfgPendentes = { ano, compSel, mando, cfg };
       registrarPendentes(
