@@ -1046,26 +1046,24 @@ function carregarRanking() {
   const filtroUF = document.getElementById('r-filtro-uf')?.value || '';
   const filtroAnos = parseInt(document.getElementById('r-filtro-anos')?.value) || 0;
 
-  let ranked = Object.entries(stats)
+  // 1. Ranking completo (sem filtros de UF/anos) → atribui posição real
+  const rankingCompleto = Object.entries(stats)
     .map(([id,s])=>{
       const anos = anosPorTime[id] ? anosPorTime[id].size : 1;
       return {...s, id, media:s.j?s.pts/s.j:0, estado:estadoPorId[id]||null, anos, mediaPorAno:s.pts/anos};
     })
-    .filter(r =>
-      r.j >= minJogos &&
-      (paisPorId[r.id] || 'Brasil') === 'Brasil' &&
-      (!filtroUF || estadoPorId[r.id] === filtroUF) &&
-      (!filtroAnos || r.anos === filtroAnos)
-    )
-    .sort((a,b)=>b.pts-a.pts);
+    .filter(r => r.j >= minJogos && (paisPorId[r.id] || 'Brasil') === 'Brasil')
+    .sort((a,b)=>b.pts-a.pts)
+    .map((r,i) => ({...r, posicao: i+1})); // posição original fixada aqui
 
-  // Popular selects de UF e Anos com os valores presentes no resultado atual (sem filtros de UF/Anos)
-  const todosRanked = Object.entries(stats)
-    .map(([id,s])=>{
-      const anos = anosPorTime[id] ? anosPorTime[id].size : 1;
-      return { id, estado: estadoPorId[id]||null, anos };
-    })
-    .filter(r => (paisPorId[r.id] || 'Brasil') === 'Brasil');
+  // 2. Aplicar filtros de UF e anos mantendo posição original
+  let ranked = rankingCompleto.filter(r =>
+    (!filtroUF || r.estado === filtroUF) &&
+    (!filtroAnos || r.anos === filtroAnos)
+  );
+
+  // Popular selects usando o ranking completo (já calculado acima)
+  const todosRanked = rankingCompleto;
 
   const selUF = document.getElementById('r-filtro-uf');
   if (selUF) {
@@ -1101,7 +1099,7 @@ function carregarRanking() {
   }
 
   const rows=ranked.map((r,i)=>`<tr>
-    <td><span class="rank-num ${i<3?'top3':''}">${i+1}</span></td>
+    <td><span class="rank-num ${r.posicao<=3?'top3':''}">${r.posicao}</span></td>
     <td style="font-weight:600">${r.nome}${r.estado ? '<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:5px">' + r.estado + '</span>' : ''}</td>
     <td style="text-align:center">${r.j}</td>
     <td style="text-align:center;color:var(--green)">${r.v}</td>
