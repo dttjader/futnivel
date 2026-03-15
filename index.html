@@ -2073,8 +2073,9 @@ function detectarPaisPorSufixo(nome) {
 
     if (sufixo.length === 2) {
       if (UF_BRASIL.has(sufixo)) {
-        // Sigla de estado válida → remove sufixo do nome, vincula estado
-        return { pais: 'Brasil', nomeLimpo, sufixoEstado: sufixo };
+        // Sigla de estado válida → MANTÉM nome completo (Atlético-GO ≠ Atlético-MG),
+        // mas marca o sufixoEstado para vincular o estado de origem
+        return { pais: 'Brasil', nomeLimpo: nome.trim(), sufixoEstado: sufixo };
       }
       // 2 letras mas não é sigla de estado (ex: GV, SJ, FC) → parte do nome, Brasil
       return { pais: 'Brasil', nomeLimpo: nome.trim() };
