@@ -688,6 +688,8 @@ async function initSQLite() {
       if (n >= 0) {
         DB = loaded;
         // Migração: criar tabelas novas que podem não existir em bancos antigos
+        // Migração: limpar estado de times internacionais (país != 'Brasil')
+        DB.run("UPDATE times SET estado=NULL WHERE pais != 'Brasil' AND estado IS NOT NULL");
         DB.run("CREATE TABLE IF NOT EXISTS times_alias (id INTEGER PRIMARY KEY AUTOINCREMENT, alias TEXT NOT NULL UNIQUE, time_id INTEGER NOT NULL REFERENCES times(id))");
         // Migração: forçar valores corretos independente do que estava salvo
         DB.run("UPDATE config_pontuacao SET valor=1.0 WHERE chave='mult_mando_casa'");
@@ -2061,45 +2063,49 @@ const UF_BRASIL = new Set([
 ]);
 
 function detectarPaisPorSufixo(nome) {
-  // Ex: "Boca Juniors-ARG" → { pais: 'Argentina', nomeLimpo: 'Boca Juniors' }
-  // Ex: "Colo-Colo-BA"     → estado da Bahia, nome completo preservado
-  // Ex: "Barcelona-ESP" e "Barcelona-EQU" → nomes distintos quando colidiriam
+  // Regra definitiva:
+  //   2 letras após "-" → sufixo de estado brasileiro (BA, RR, SP…) → nome limpo + estado
+  //   3 letras após "-" → sufixo de país estrangeiro (ARG, CHI, ESP…) → nome limpo + país
   const m = nome.match(/^(.+)-([A-Z]{2,3})$/);
   if (m) {
     const sufixo = m[2].toUpperCase();
+    const nomeLimpo = m[1].trim();
 
-    // Sufixo de estado brasileiro → nunca é país estrangeiro, preserva nome completo
-    if (UF_BRASIL.has(sufixo)) {
-      return { pais: 'Brasil', nomeLimpo: nome.trim() };
+    if (sufixo.length === 2) {
+      // Sempre estado brasileiro — remove sufixo do nome, vincula estado depois
+      return { pais: 'Brasil', nomeLimpo, sufixoEstado: sufixo };
     }
 
+    // 3 letras → país estrangeiro
     const pais = SUFIXO_PAIS[sufixo];
     if (pais) {
       // Verificar colisão: mesmo nomeLimpo já existe com outro país
-      const nomeLimpo = m[1].trim();
       const existente = query("SELECT pais FROM times WHERE nome=?", [nomeLimpo])[0];
       if (existente && existente.pais !== pais && existente.pais !== 'Brasil') {
-        // Dois países diferentes com mesmo base: manter nome completo com sufixo
         return { pais, nomeLimpo: nome.trim() };
       }
       return { pais, nomeLimpo };
     }
-    // Sufixo desconhecido: manter nome completo para não colidir
+    // Sufixo de 3 letras desconhecido: manter nome completo, país Outro
     return { pais: 'Outro', nomeLimpo: nome.trim() };
   }
   return { pais: 'Brasil', nomeLimpo: nome.trim() };
 }
 
 function getOrCreateTime(nomeOriginal, nivel, ano, uf) {
-  const { pais, nomeLimpo } = detectarPaisPorSufixo(nomeOriginal.trim());
+  const { pais, nomeLimpo, sufixoEstado } = detectarPaisPorSufixo(nomeOriginal.trim());
   const internacional = pais !== 'Brasil';
   const nivelFinal = internacional ? 1 : nivel; // internacionais sempre N1
 
-  // Verifica alias primeiro
+  // Estado vem do sufixo do nome (Baré-RR → RR) ou do campeonato estadual (uf = RR)
+  const estadoDoNome = sufixoEstado || null;
+  const estadoDoComp = (!internacional && uf && UF_ESTADO[uf]) ? UF_ESTADO[uf] : null;
+  const estadoFinal = estadoDoNome || estadoDoComp;
+
+  // Verifica alias primeiro (pelo nome limpo)
   const aliasRow = query("SELECT time_id FROM times_alias WHERE alias=?",[nomeLimpo])[0];
   if (aliasRow) {
     const tid = aliasRow.time_id;
-    // Atualizar nível se necessário
     if (!query("SELECT id FROM times_nivel WHERE time_id=? AND ano=?",[tid,ano])[0])
       exec("INSERT OR IGNORE INTO times_nivel (time_id,ano,nivel) VALUES (?,?,?)",[tid,ano,nivelFinal]);
     else {
@@ -2109,23 +2115,22 @@ function getOrCreateTime(nomeOriginal, nivel, ano, uf) {
     }
     return tid;
   }
-  // Busca pelo nome limpo (sem sufixo de país)
+
   let row = query("SELECT id FROM times WHERE nome=?",[nomeLimpo])[0];
   if (!row) {
-    // Determinar estado: só para campeonatos estaduais (UF_ESTADO)
-    const estado = (!internacional && uf && UF_ESTADO[uf]) ? UF_ESTADO[uf] : null;
     exec("INSERT INTO times (nome,nome_curto,pais,estado) VALUES (?,?,?,?)",
-      [nomeLimpo, null, pais, estado]);
+      [nomeLimpo, null, pais, estadoFinal]);
     row = query("SELECT id FROM times WHERE nome=?",[nomeLimpo])[0];
   } else {
-    // Time já existe — atualizar país se era desconhecido e agora temos info
     const existente = query("SELECT pais, estado FROM times WHERE id=?",[row.id])[0];
-    if (existente && existente.pais === 'Brasil' && internacional) {
+    // Atualizar país se time era genérico e agora identificamos como internacional
+    if (existente && (existente.pais === 'Brasil' || existente.pais === 'Outro') && internacional) {
       exec("UPDATE times SET pais=? WHERE id=?", [pais, row.id]);
     }
-    // Vincular estado se campeonato estadual e ainda não tem estado definido
-    if (!internacional && uf && UF_ESTADO[uf] && !existente?.estado) {
-      exec("UPDATE times SET estado=? WHERE id=?", [UF_ESTADO[uf], row.id]);
+    // Vincular estado se: time brasileiro, temos estado definido, e o time não tem estado ainda
+    // Nunca atualiza estado de time internacional
+    if (!internacional && estadoFinal && !existente?.estado) {
+      exec("UPDATE times SET estado=? WHERE id=?", [estadoFinal, row.id]);
     }
   }
   if (!row) return null;
