@@ -1557,8 +1557,10 @@ function carregarH2H() {
   if(t1===t2){return toast('Selecione times diferentes.',true);}
   const n1=TIMES.find(t=>t.id==t1)?.nome||'Time 1';
   const n2=TIMES.find(t=>t.id==t2)?.nome||'Time 2';
-  const partidas=query(`SELECT p.*,tc.nome AS casa_nome,tf.nome AS fora_nome,COALESCE(c.multiplicador,1) AS mc FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE (p.time_casa_id=? AND p.time_fora_id=?) OR (p.time_casa_id=? AND p.time_fora_id=?) ORDER BY p.data DESC`,[t1,t2,t2,t1]);
+  const partidas=query(`SELECT p.*,tc.nome AS casa_nome,tf.nome AS fora_nome,COALESCE(c.nome,p.comp_sigla,'—') AS comp_nome,COALESCE(c.multiplicador,1) AS mc FROM partidas p JOIN times tc ON tc.id=p.time_casa_id JOIN times tf ON tf.id=p.time_fora_id LEFT JOIN competicoes c ON c.id=p.competicao_id WHERE (p.time_casa_id=? AND p.time_fora_id=?) OR (p.time_casa_id=? AND p.time_fora_id=?) ORDER BY p.data DESC`,[t1,t2,t2,t1]);
   if(!partidas.length){document.getElementById('h2h-result').innerHTML=`<div class="empty-state"><div class="icon">⚔️</div><p>Nenhum confronto registrado.</p></div>`;return;}
+
+  // Totais gerais
   const s1={v:0,e:0,d:0,gp:0,gc:0,pts:0}, s2={v:0,e:0,d:0,gp:0,gc:0,pts:0};
   partidas.forEach(p=>{
     const isT1Casa=p.time_casa_id==t1;
@@ -1568,25 +1570,101 @@ function carregarH2H() {
     s2.pts+=parseFloat(isT1Casa?p.pts_fora:p.pts_casa||0);
     if(gT1>gT2){s1.v++;s2.d++;} else if(gT1<gT2){s2.v++;s1.d++;} else{s1.e++;s2.e++;}
   });
-  const histRows=partidas.map(p=>{
-    const isT1Casa=p.time_casa_id==t1;
-    const gT1=isT1Casa?p.gols_casa:p.gols_fora, gT2=isT1Casa?p.gols_fora:p.gols_casa;
-    const pts1=parseFloat(isT1Casa?p.pts_casa:p.pts_fora||0);
-    const res=gT1>gT2?'✅':gT1<gT2?'❌':'🟡';
-    return `<tr><td style="color:var(--muted);font-size:12px">${p.data}</td><td style="font-weight:600;text-align:right">${p.casa_nome}</td><td class="score-cell">${p.gols_casa}×${p.gols_fora}</td><td style="font-weight:600">${p.fora_nome}</td><td style="text-align:center">${res}</td><td style="text-align:right"><span class="pts-badge ${pts1<0?'neg':''}" style="font-size:12px">${pts1>=0?'+':''}${parseFloat(pts1||0).toFixed(1)}</span></td></tr>`;
-  }).join('');
+
+  // Agrupar por nível de confronto
+  const NIVEIS_H2H = [
+    { key:'int', label:'🌎 Internacional', cor:'var(--accent)' },
+    { key:'nac', label:'🇧🇷 Nacional',      cor:'var(--success)' },
+    { key:'reg', label:'🗺️ Regional',       cor:'#f39c12' },
+    { key:'est', label:'📍 Estadual',       cor:'var(--muted)' },
+  ];
+
+  const porNivel = { int:[], nac:[], reg:[], est:[] };
+  partidas.forEach(p => {
+    const nc = p.competicao_id ? COMP_NIVEL_CONF[p.competicao_id] : nivelConfrontoLabel(p.comp_sigla);
+    if (nc && porNivel[nc]) porNivel[nc].push(p);
+  });
+
+  function statsNivel(lista) {
+    const s1={v:0,e:0,d:0,gp:0,gc:0,pts:0}, s2={v:0,e:0,d:0,gp:0,gc:0,pts:0};
+    lista.forEach(p=>{
+      const isT1Casa=p.time_casa_id==t1;
+      const gT1=isT1Casa?p.gols_casa:p.gols_fora, gT2=isT1Casa?p.gols_fora:p.gols_casa;
+      s1.gp+=gT1; s1.gc+=gT2; s2.gp+=gT2; s2.gc+=gT1;
+      s1.pts+=parseFloat(isT1Casa?p.pts_casa:p.pts_fora||0);
+      s2.pts+=parseFloat(isT1Casa?p.pts_fora:p.pts_casa||0);
+      if(gT1>gT2){s1.v++;s2.d++;} else if(gT1<gT2){s2.v++;s1.d++;} else{s1.e++;s2.e++;}
+    });
+    return {s1,s2};
+  }
+
+  function renderLinhasPartidas(lista) {
+    return lista.map(p=>{
+      const isT1Casa=p.time_casa_id==t1;
+      const gT1=isT1Casa?p.gols_casa:p.gols_fora, gT2=isT1Casa?p.gols_fora:p.gols_casa;
+      const pts1=parseFloat(isT1Casa?p.pts_casa:p.pts_fora||0);
+      const res=gT1>gT2?'✅':gT1<gT2?'❌':'🟡';
+      return `<tr>
+        <td style="color:var(--muted);font-size:11px">${p.ano}</td>
+        <td style="color:var(--muted);font-size:11px">${p.comp_nome}</td>
+        <td style="font-weight:600;text-align:right">${p.casa_nome}</td>
+        <td class="score-cell">${p.gols_casa}×${p.gols_fora}</td>
+        <td style="font-weight:600">${p.fora_nome}</td>
+        <td style="text-align:center">${res}</td>
+        <td style="text-align:right"><span class="pts-badge ${pts1<0?'neg':''}" style="font-size:11px">${pts1>=0?'+':''}${parseFloat(pts1||0).toFixed(1)}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderBlocoNivel(nv, idx) {
+    const lista = porNivel[nv.key];
+    if (!lista.length) return '';
+    const {s1:ns1, s2:ns2} = statsNivel(lista);
+    const uid = `h2h-nivel-${nv.key}`;
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden">
+        <div onclick="const b=document.getElementById('${uid}');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.chev').textContent=b.style.display==='none'?'▶':'▼'"
+             style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;user-select:none;background:var(--surface2)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-weight:600;font-size:14px">${nv.label}</span>
+            <span style="font-size:12px;color:var(--muted)">${lista.length} jogo${lista.length>1?'s':''}</span>
+            <span style="font-size:12px;color:${nv.cor}">${ns1.v}V ${ns1.e}E ${ns1.d}D</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <span style="font-size:12px;color:var(--muted)">${n1}: <strong>${ns1.gp}</strong> gols · ${n2}: <strong>${ns2.gp}</strong> gols</span>
+            <span class="chev" style="color:var(--muted);font-size:12px">▼</span>
+          </div>
+        </div>
+        <div id="${uid}" style="display:block;overflow-x:auto;padding:0 4px 4px">
+          <table style="width:100%">
+            <thead><tr>
+              <th style="font-size:11px">Ano</th>
+              <th style="font-size:11px">Competição</th>
+              <th style="text-align:right;font-size:11px">Casa</th>
+              <th style="text-align:center;font-size:11px">Placar</th>
+              <th style="font-size:11px">Fora</th>
+              <th style="text-align:center;font-size:11px">Res.</th>
+              <th style="text-align:right;font-size:11px">Pts ${n1}</th>
+            </tr></thead>
+            <tbody>${renderLinhasPartidas(lista)}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  const blocosNivel = NIVEIS_H2H.map((nv,i) => renderBlocoNivel(nv,i)).join('');
   document.getElementById('h2h-result').innerHTML=`
     <div class="h2h-header">
       <div class="h2h-team"><div class="nome">${n1}</div><div style="color:var(--muted);font-size:12px;margin-top:4px">${s1.v}V ${s1.e}E ${s1.d}D</div><div style="margin-top:8px"><span class="pts-badge ${s1.pts<0?'neg':''}">${parseFloat(s1.pts||0).toFixed(1)} pts</span></div></div>
       <div class="h2h-vs">VS</div>
       <div class="h2h-team"><div class="nome">${n2}</div><div style="color:var(--muted);font-size:12px;margin-top:4px">${s2.v}V ${s2.e}E ${s2.d}D</div><div style="margin-top:8px"><span class="pts-badge ${s2.pts<0?'neg':''}">${parseFloat(s2.pts||0).toFixed(1)} pts</span></div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;">
       <div class="card"><div class="label">Gols de ${n1}</div><div class="value">${s1.gp} <span style="font-size:14px;color:var(--muted)">pró · ${s1.gc} contra</span></div></div>
       <div class="card"><div class="label">Gols de ${n2}</div><div class="value">${s2.gp} <span style="font-size:14px;color:var(--muted)">pró · ${s2.gc} contra</span></div></div>
     </div>
-    <p class="section-title">Histórico (${partidas.length} jogos)</p>
-    <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Casa</th><th style="text-align:center">Placar</th><th>Fora</th><th style="text-align:center">Res.</th><th style="text-align:right">Pts ${n1}</th></tr></thead><tbody>${histRows}</tbody></table></div>`;
+    <p class="section-title" style="margin-bottom:12px">Histórico por nível (${partidas.length} jogos)</p>
+    ${blocosNivel}`;
 }
 
 // ─────────────────────────────────────────
