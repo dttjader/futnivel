@@ -1317,6 +1317,36 @@ function inicializarHistorico() {
   carregarHistorico();
 }
 
+
+// Mapa competicao_id → nível de confronto para a tabela de adversários
+const COMP_NIVEL_CONF = {
+  // Internacional
+  6: 'int', 7: 'int', 8: 'int', 37: 'int',
+  // Nacional
+  1: 'nac', 2: 'nac', 3: 'nac', 4: 'nac', 5: 'nac',
+  // Regional
+  39: 'reg', 40: 'reg', 41: 'reg',
+  // Estaduais (9–38, exceto os acima)
+};
+// IDs estaduais: 9 a 38 (exceto 36=amistoso, 37=mundial já mapeados)
+for (let i = 9; i <= 38; i++) {
+  if (!COMP_NIVEL_CONF[i]) COMP_NIVEL_CONF[i] = 'est';
+}
+// Amistoso → sem nível de confronto (ignorar)
+COMP_NIVEL_CONF[36] = null;
+
+function nivelConfrontoLabel(sigla) {
+  // Fallback por comp_sigla quando competicao_id é null
+  if (!sigla) return null;
+  const s = sigla.toUpperCase();
+  if (['L','LIB','S','SUD','R','RCP','M','MUN'].includes(s)) return 'int';
+  if (['A','B','C','D','CB'].includes(s)) return 'nac';
+  if (['PL','CV','CN','NORD'].includes(s)) return 'reg';
+  if (s.length === 2 && ['SP','RJ','MG','RS','SC','PR','BA','PE','CE','GO','AL','AM',
+      'AP','DF','ES','MA','MT','MS','PA','PB','PI','RN','RO','RR','SE','TO','AC'].includes(s)) return 'est';
+  return null;
+}
+
 function carregarHistorico() {
   const timeId = parseInt(document.getElementById('hist-time')?.value);
   if (!timeId) return;
@@ -1377,13 +1407,16 @@ function carregarHistorico() {
   partidas.forEach(p => {
     const advId = p.time_casa_id === timeId ? p.time_fora_id : p.time_casa_id;
     const advNome = p.time_casa_id === timeId ? p.fora_nome : p.casa_nome;
-    if (!advsMap[advId]) advsMap[advId] = { nome: advNome, j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0 };
+    if (!advsMap[advId]) advsMap[advId] = { nome: advNome, j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0, niveis: new Set() };
     const s = advsMap[advId];
     const minha = p.time_casa_id === timeId;
     const gP = minha ? p.gols_casa : p.gols_fora;
     const gC = minha ? p.gols_fora : p.gols_casa;
     s.j++; s.gp+=gP; s.gc+=gC; s.pts += parseFloat(minha?p.pts_casa:p.pts_fora)||0;
     if(gP>gC) s.v++; else if(gP<gC) s.d++; else s.e++;
+    // Nível de confronto
+    const nc = p.competicao_id ? COMP_NIVEL_CONF[p.competicao_id] : nivelConfrontoLabel(p.comp_sigla);
+    if (nc) s.niveis.add(nc);
   });
   const advs = Object.values(advsMap).sort((a,b)=> b.j-a.j || b.pts-a.pts);
 
@@ -1458,6 +1491,10 @@ function carregarHistorico() {
           <th style="text-align:center">GP</th>
           <th style="text-align:center">GC</th>
           <th style="text-align:right">Pts</th>
+          <th style="text-align:center" title="Internacional">🌎</th>
+          <th style="text-align:center" title="Nacional">🇧🇷</th>
+          <th style="text-align:center" title="Regional">🗺️</th>
+          <th style="text-align:center" title="Estadual">📍</th>
         </tr></thead><tbody>
         ${advs.map(a => `<tr>
           <td style="font-weight:600">${a.nome}</td>
@@ -1468,6 +1505,10 @@ function carregarHistorico() {
           <td style="text-align:center">${a.gp}</td>
           <td style="text-align:center">${a.gc}</td>
           <td style="text-align:right">${fmtPts(a.pts)}</td>
+          <td style="text-align:center;font-size:13px">${a.niveis.has('int') ? '✓' : ''}</td>
+          <td style="text-align:center;font-size:13px">${a.niveis.has('nac') ? '✓' : ''}</td>
+          <td style="text-align:center;font-size:13px">${a.niveis.has('reg') ? '✓' : ''}</td>
+          <td style="text-align:center;font-size:13px">${a.niveis.has('est') ? '✓' : ''}</td>
         </tr>`).join('')}
         </tbody></table>
       </div>
